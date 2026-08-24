@@ -96,8 +96,11 @@ Usage refresh 15 s, limits 60 s.
 
 ### i18n
 
-Every user-facing string comes from the `L` table in `i18n.rs` (en/ko/ja/es), resolved on each
-refresh so a language switch re-renders. No literal UI strings in `app.rs`.
+Every user-facing string comes from the `L` table in `i18n.rs` (en/ko/ja/es/fr — fr is
+port-specific, absent from the macOS app), resolved on each refresh so a language switch
+re-renders. No literal UI strings in `app.rs`. Adding a language means: a `Language` variant,
+a 6th `t()` argument on every call, `Nature::name`, and an `fr`-style field on `SpeciesRec` /
+`SpeciesRow` fed by `pokeapi.rs` + `scripts/gen_pool.py`.
 
 ## Tests
 

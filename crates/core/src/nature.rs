@@ -72,38 +72,45 @@ impl Nature {
 
     /// Official translated name (port of `PokemonNature.name(_:)`).
     pub fn name(self, lang: Language) -> &'static str {
-        let names: (&'static str, &'static str, &'static str, &'static str) = match self {
-            Nature::Hardy => ("노력", "Hardy", "がんばりや", "Fuerte"),
-            Nature::Lonely => ("외로움", "Lonely", "さみしがり", "Huraña"),
-            Nature::Brave => ("용감", "Brave", "ゆうかん", "Audaz"),
-            Nature::Adamant => ("고집", "Adamant", "いじっぱり", "Firme"),
-            Nature::Naughty => ("개구쟁이", "Naughty", "やんちゃ", "Pícara"),
-            Nature::Bold => ("대담", "Bold", "ずぶとい", "Osada"),
-            Nature::Docile => ("온순", "Docile", "すなお", "Dócil"),
-            Nature::Relaxed => ("무사태평", "Relaxed", "のんき", "Plácida"),
-            Nature::Impish => ("장난꾸러기", "Impish", "わんぱく", "Agitada"),
-            Nature::Lax => ("촐랑", "Lax", "のうてんき", "Floja"),
-            Nature::Timid => ("겁쟁이", "Timid", "おくびょう", "Miedosa"),
-            Nature::Hasty => ("성급", "Hasty", "せっかち", "Activa"),
-            Nature::Serious => ("성실", "Serious", "まじめ", "Seria"),
-            Nature::Jolly => ("명랑", "Jolly", "ようき", "Alegre"),
-            Nature::Naive => ("천진난만", "Naive", "むじゃき", "Ingenua"),
-            Nature::Modest => ("조심", "Modest", "ひかえめ", "Modesta"),
-            Nature::Mild => ("의젓", "Mild", "おっとり", "Afable"),
-            Nature::Quiet => ("냉정", "Quiet", "れいせい", "Mansa"),
-            Nature::Bashful => ("수줍음", "Bashful", "てれや", "Tímida"),
-            Nature::Rash => ("덜렁", "Rash", "うっかりや", "Alocada"),
-            Nature::Calm => ("차분", "Calm", "おだやか", "Serena"),
-            Nature::Gentle => ("얌전", "Gentle", "おとなしい", "Amable"),
-            Nature::Sassy => ("건방", "Sassy", "なまいき", "Grosera"),
-            Nature::Careful => ("신중", "Careful", "しんちょう", "Cauta"),
-            Nature::Quirky => ("변덕", "Quirky", "きまぐれ", "Rara"),
+        let names: (
+            &'static str,
+            &'static str,
+            &'static str,
+            &'static str,
+            &'static str,
+        ) = match self {
+            Nature::Hardy => ("노력", "Hardy", "がんばりや", "Fuerte", "Hardi"),
+            Nature::Lonely => ("외로움", "Lonely", "さみしがり", "Huraña", "Solo"),
+            Nature::Brave => ("용감", "Brave", "ゆうかん", "Audaz", "Brave"),
+            Nature::Adamant => ("고집", "Adamant", "いじっぱり", "Firme", "Rigide"),
+            Nature::Naughty => ("개구쟁이", "Naughty", "やんちゃ", "Pícara", "Mauvais"),
+            Nature::Bold => ("대담", "Bold", "ずぶとい", "Osada", "Assuré"),
+            Nature::Docile => ("온순", "Docile", "すなお", "Dócil", "Docile"),
+            Nature::Relaxed => ("무사태평", "Relaxed", "のんき", "Plácida", "Relax"),
+            Nature::Impish => ("장난꾸러기", "Impish", "わんぱく", "Agitada", "Malin"),
+            Nature::Lax => ("촐랑", "Lax", "のうてんき", "Floja", "Lâche"),
+            Nature::Timid => ("겁쟁이", "Timid", "おくびょう", "Miedosa", "Timide"),
+            Nature::Hasty => ("성급", "Hasty", "せっかち", "Activa", "Pressé"),
+            Nature::Serious => ("성실", "Serious", "まじめ", "Seria", "Sérieux"),
+            Nature::Jolly => ("명랑", "Jolly", "ようき", "Alegre", "Jovial"),
+            Nature::Naive => ("천진난만", "Naive", "むじゃき", "Ingenua", "Naïf"),
+            Nature::Modest => ("조심", "Modest", "ひかえめ", "Modesta", "Modeste"),
+            Nature::Mild => ("의젓", "Mild", "おっとり", "Afable", "Doux"),
+            Nature::Quiet => ("냉정", "Quiet", "れいせい", "Mansa", "Discret"),
+            Nature::Bashful => ("수줍음", "Bashful", "てれや", "Tímida", "Pudique"),
+            Nature::Rash => ("덜렁", "Rash", "うっかりや", "Alocada", "Foufou"),
+            Nature::Calm => ("차분", "Calm", "おだやか", "Serena", "Calme"),
+            Nature::Gentle => ("얌전", "Gentle", "おとなしい", "Amable", "Gentil"),
+            Nature::Sassy => ("건방", "Sassy", "なまいき", "Grosera", "Malpoli"),
+            Nature::Careful => ("신중", "Careful", "しんちょう", "Cauta", "Prudent"),
+            Nature::Quirky => ("변덕", "Quirky", "きまぐれ", "Rara", "Bizarre"),
         };
         match lang {
             Language::Ko => names.0,
             Language::En => names.1,
             Language::Ja => names.2,
             Language::Es => names.3,
+            Language::Fr => names.4,
         }
     }
 }
@@ -131,10 +138,12 @@ mod tests {
         assert_eq!(Nature::Hardy.name(Language::Ko), "노력");
         assert_eq!(Nature::Hardy.name(Language::Ja), "がんばりや");
         assert_eq!(Nature::Hardy.name(Language::Es), "Fuerte");
+        assert_eq!(Nature::Hardy.name(Language::Fr), "Hardi");
+        assert_eq!(Nature::Adamant.name(Language::Fr), "Rigide");
         assert_eq!(Nature::Quirky.name(Language::Ja), "きまぐれ");
         // Every nature has a non-empty name in every language.
         for n in Nature::ALL {
-            for lang in [Language::En, Language::Ko, Language::Ja, Language::Es] {
+            for lang in Language::ALL {
                 assert!(!n.name(lang).is_empty(), "{n:?} {lang:?}");
             }
         }

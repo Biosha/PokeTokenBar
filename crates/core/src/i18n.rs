@@ -1,5 +1,5 @@
 //! Companion/user-facing strings in the four languages the macOS app ships
-//! (`Localization.swift`: ko/en/ja/es), default English.
+//! (`Localization.swift`: ko/en/ja/es) plus French (port-specific), default English.
 //!
 //! Scope: the companion, Pokédex, bag, shop and notification strings used by the core and
 //! the headless CLI. Pure app-chrome strings (settings pages, Keychain, updates, save
@@ -17,18 +17,27 @@ pub enum Language {
     En,
     Ja,
     Es,
+    /// Port-specific: not in the macOS app.
+    Fr,
 }
 
 impl Language {
-    pub const ALL: [Language; 4] = [Language::Ko, Language::En, Language::Ja, Language::Es];
+    pub const ALL: [Language; 5] = [
+        Language::Ko,
+        Language::En,
+        Language::Ja,
+        Language::Es,
+        Language::Fr,
+    ];
 
-    /// Parse a language code ("ko"/"en"/"ja"/"es", case-insensitive).
+    /// Parse a language code ("ko"/"en"/"ja"/"es"/"fr", case-insensitive).
     pub fn from_code(code: &str) -> Option<Language> {
         match code.trim().to_ascii_lowercase().as_str() {
             "ko" => Some(Language::Ko),
             "en" => Some(Language::En),
             "ja" => Some(Language::Ja),
             "es" => Some(Language::Es),
+            "fr" => Some(Language::Fr),
             _ => None,
         }
     }
@@ -39,6 +48,7 @@ impl Language {
             Language::En => "en",
             Language::Ja => "ja",
             Language::Es => "es",
+            Language::Fr => "fr",
         }
     }
 
@@ -49,6 +59,7 @@ impl Language {
             Language::En => "English",
             Language::Ja => "日本語",
             Language::Es => "Español",
+            Language::Fr => "Français",
         }
     }
 }
@@ -90,12 +101,14 @@ impl L {
         en: &'static str,
         ja: &'static str,
         es: &'static str,
+        fr: &'static str,
     ) -> &'static str {
         match self.0 {
             Language::Ko => ko,
             Language::En => en,
             Language::Ja => ja,
             Language::Es => es,
+            Language::Fr => fr,
         }
     }
 
@@ -107,6 +120,7 @@ impl L {
             "Hatching soon.",
             "もうすぐ孵化します。",
             "Está a punto de eclosionar.",
+            "Va bientôt éclore.",
         )
     }
     pub fn status_idle(&self) -> &'static str {
@@ -115,6 +129,7 @@ impl L {
             "Keeping quiet today.",
             "今日は静かにしています。",
             "Hoy se mantiene tranquilo.",
+            "Il reste tranquille aujourd'hui.",
         )
     }
     pub fn status_working(&self) -> &'static str {
@@ -123,6 +138,7 @@ impl L {
             "Today's work is piling up.",
             "本日の作業が積み重なっています。",
             "El trabajo de hoy se va acumulando.",
+            "Le travail s'accumule aujourd'hui.",
         )
     }
     pub fn status_focus(&self) -> &'static str {
@@ -131,6 +147,7 @@ impl L {
             "In focus mode now.",
             "今は集中モードです。",
             "Ahora está en modo concentración.",
+            "En pleine concentration.",
         )
     }
     pub fn status_tired(&self) -> &'static str {
@@ -139,6 +156,7 @@ impl L {
             "Close to the limit. A short break is fine.",
             "上限が近いです。少し休んでも大丈夫。",
             "Está cerca del límite. Un pequeño descanso no vendría mal.",
+            "Proche de la limite. Une petite pause s'impose.",
         )
     }
     pub fn status_sleep(&self) -> &'static str {
@@ -147,6 +165,7 @@ impl L {
             "Sleeping now.",
             "今は眠っています。",
             "Ahora está durmiendo.",
+            "Il dort.",
         )
     }
     pub fn status_evolved(&self, name: &str) -> String {
@@ -155,17 +174,30 @@ impl L {
             "Evolved into {name}!",
             "{name} に進化しました！",
             "¡Evolucionó a {name}!",
+            "A évolué en {name} !",
         );
         s.replace("{name}", name)
     }
     pub fn status_grew(&self) -> &'static str {
-        self.t("성장했어요!", "It grew!", "成長しました！", "¡Ha crecido!")
+        self.t(
+            "성장했어요!",
+            "It grew!",
+            "成長しました！",
+            "¡Ha crecido!",
+            "Il a grandi !",
+        )
     }
 
     // MARK: stage / egg copy
 
     pub fn final_form(&self) -> &'static str {
-        self.t("최종 진화체", "Final form", "最終進化", "Forma final")
+        self.t(
+            "최종 진화체",
+            "Final form",
+            "最終進化",
+            "Forma final",
+            "Forme finale",
+        )
     }
     pub fn stage(&self, i: i64, k: i64) -> String {
         let s = self.t(
@@ -173,6 +205,7 @@ impl L {
             "Stage {i} / {k}",
             "進化段階 {i} / {k}",
             "Etapa {i} / {k}",
+            "Stade {i} / {k}",
         );
         s.replace("{i}", &i.to_string())
             .replace("{k}", &k.to_string())
@@ -183,6 +216,7 @@ impl L {
             "Unknown next evolution",
             "次の進化先は不明",
             "Próxima evolución desconocida",
+            "Évolution suivante inconnue",
         )
     }
     pub fn egg_incubating(&self) -> &'static str {
@@ -191,6 +225,7 @@ impl L {
             "🥚 Incubating",
             "🥚 孵化の準備中",
             "🥚 Incubando",
+            "🥚 En incubation",
         )
     }
     pub fn egg_to_hatch(&self, amount: &str) -> String {
@@ -199,6 +234,7 @@ impl L {
             "{amount} to hatch",
             "孵化まで {amount}",
             "{amount} para eclosionar",
+            "{amount} avant l'éclosion",
         );
         s.replace("{amount}", amount)
     }
@@ -208,6 +244,7 @@ impl L {
             "{amount} to next evolution",
             "次の進化まで {amount}",
             "{amount} para la siguiente evolución",
+            "{amount} avant la prochaine évolution",
         );
         s.replace("{amount}", amount)
     }
@@ -217,6 +254,7 @@ impl L {
             "{amount} to graduation",
             "卒業まで {amount}",
             "{amount} para graduarse",
+            "{amount} avant le diplôme",
         );
         s.replace("{amount}", amount)
     }
@@ -226,6 +264,7 @@ impl L {
             "{name} graduated → saved to the dex. A new Token Egg has arrived!",
             "{name} 卒業 → 図鑑に保存。新しいToken Eggが届きました！",
             "{name} se graduó → guardado en la Pokédex. ¡Ha llegado un nuevo Token Egg!",
+            "{name} est diplômé → ajouté au Pokédex. Un nouvel Œuf Token est arrivé !",
         );
         s.replace("{name}", name)
     }
@@ -235,6 +274,7 @@ impl L {
             "About to hatch!",
             "もうすぐ孵化！",
             "¡Está a punto de eclosionar!",
+            "Sur le point d'éclore !",
         )
     }
     pub fn egg_first_run_hint(&self) -> &'static str {
@@ -242,28 +282,52 @@ impl L {
             "로컬 AI 코딩 도구의 사용량으로 자라요. 약 5M 토큰을 쓰면 알이 부화해요.",
             "Grows from your local AI coding usage. Your egg hatches after ~5M tokens.",
             "ローカルの AI コーディング使用量で育ちます。約5Mトークンでタマゴが孵化します。",
-            "Crece con el uso de tus herramientas locales de programación con IA. Tu huevo eclosiona tras unos 5M de tokens.",
+            "Crece con el uso de tus herramientas locales de programación con IA. Tu huevo eclosiona tras unos 5M de tokens.", "Il grandit avec votre usage local des IA de code. Votre œuf éclôt après ~5 M de tokens.",
         )
     }
 
     // MARK: dex
 
     pub fn dex_title(&self) -> &'static str {
-        self.t("도감", "Pokédex", "図鑑", "Pokédex")
+        self.t("도감", "Pokédex", "図鑑", "Pokédex", "Pokédex")
     }
     pub fn dex_total(&self, n: i64) -> String {
-        let s = self.t("총 {n}마리", "{n} total", "全{n}匹", "{n} en total");
+        let s = self.t(
+            "총 {n}마리",
+            "{n} total",
+            "全{n}匹",
+            "{n} en total",
+            "{n} au total",
+        );
         s.replace("{n}", &n.to_string())
     }
     pub fn catch_log_title(&self) -> &'static str {
-        self.t("포획 로그", "Catch log", "捕獲ログ", "Registro de capturas")
+        self.t(
+            "포획 로그",
+            "Catch log",
+            "捕獲ログ",
+            "Registro de capturas",
+            "Journal des captures",
+        )
     }
     pub fn dex_species_total(&self, n: i64) -> String {
-        let s = self.t("{n}종", "{n} species", "{n}種", "{n} especies");
+        let s = self.t(
+            "{n}종",
+            "{n} species",
+            "{n}種",
+            "{n} especies",
+            "{n} espèces",
+        );
         s.replace("{n}", &n.to_string())
     }
     pub fn dex_raising(&self) -> &'static str {
-        self.t("키우는 중", "Raising", "育成中", "Criando")
+        self.t(
+            "키우는 중",
+            "Raising",
+            "育成中",
+            "Criando",
+            "En cours d'élevage",
+        )
     }
     pub fn dex_empty_title(&self) -> &'static str {
         self.t(
@@ -271,6 +335,7 @@ impl L {
             "No Pokémon caught yet!",
             "まだ捕まえたポケモンがいません！",
             "¡Todavía no has capturado ningún Pokémon!",
+            "Aucun Pokémon capturé pour l'instant !",
         )
     }
     pub fn dex_empty_hint(&self) -> &'static str {
@@ -279,10 +344,11 @@ impl L {
             "Spend tokens to hatch your first Pokémon.",
             "トークンを使って最初のポケモンを孵化させましょう。",
             "Usa tokens para eclosionar tu primer Pokémon.",
+            "Dépensez des tokens pour faire éclore votre premier Pokémon.",
         )
     }
     pub fn dex_shiny_label(&self) -> &'static str {
-        self.t("이로치", "Shiny", "色違い", "Variocolor")
+        self.t("이로치", "Shiny", "色違い", "Variocolor", "Chromatique")
     }
     pub fn dex_filter_hint(&self) -> &'static str {
         self.t(
@@ -290,20 +356,21 @@ impl L {
             "Tap to show only this rarity · tap again to clear",
             "タップでこの希少度のみ表示・再タップで全体",
             "Toca para ver solo esta rareza · toca de nuevo para ver todo",
+            "Touchez pour n'afficher que cette rareté · touchez à nouveau pour tout afficher",
         )
     }
 
     pub fn rarity_common(&self) -> &'static str {
-        self.t("일반", "Common", "ノーマル", "Común")
+        self.t("일반", "Common", "ノーマル", "Común", "Commun")
     }
     pub fn rarity_uncommon(&self) -> &'static str {
-        self.t("고급", "Uncommon", "アンコモン", "Poco común")
+        self.t("고급", "Uncommon", "アンコモン", "Poco común", "Peu commun")
     }
     pub fn rarity_rare(&self) -> &'static str {
-        self.t("희귀", "Rare", "レア", "Raro")
+        self.t("희귀", "Rare", "レア", "Raro", "Rare")
     }
     pub fn rarity_legendary(&self) -> &'static str {
-        self.t("전설", "Legendary", "伝説", "Legendario")
+        self.t("전설", "Legendary", "伝説", "Legendario", "Légendaire")
     }
     pub fn rarity_label(&self, r: Rarity) -> &'static str {
         match r {
@@ -317,7 +384,13 @@ impl L {
     // MARK: notifications
 
     pub fn notif_hatch_title(&self) -> &'static str {
-        self.t("🥚 부화!", "🥚 Hatched!", "🥚 孵化！", "🥚 ¡Eclosionó!")
+        self.t(
+            "🥚 부화!",
+            "🥚 Hatched!",
+            "🥚 孵化！",
+            "🥚 ¡Eclosionó!",
+            "🥚 Éclosion !",
+        )
     }
     pub fn notif_hatch_body(&self, name: &str) -> String {
         let s = self.t(
@@ -325,6 +398,7 @@ impl L {
             "{name} hatched from the egg!",
             "タマゴから {name} が生まれました！",
             "¡{name} salió del huevo!",
+            "{name} est sorti de l'œuf !",
         );
         s.replace("{name}", name)
     }
@@ -334,6 +408,7 @@ impl L {
             "✨ Shiny Pokémon!",
             "✨ 色違いポケモン！",
             "✨ ¡Pokémon variocolor!",
+            "✨ Pokémon chromatique !",
         )
     }
     pub fn notif_shiny_hatch_body(&self, name: &str) -> String {
@@ -342,11 +417,18 @@ impl L {
             "A shiny {name} hatched! (1 in 64)",
             "色違いの {name} が生まれました！(1/64)",
             "¡Nació un {name} variocolor! (1 entre 64)",
+            "Un {name} chromatique a éclos ! (1 sur 64)",
         );
         s.replace("{name}", name)
     }
     pub fn notif_evolve_title(&self) -> &'static str {
-        self.t("✨ 진화!", "✨ Evolved!", "✨ 進化！", "✨ ¡Evolucionó!")
+        self.t(
+            "✨ 진화!",
+            "✨ Evolved!",
+            "✨ 進化！",
+            "✨ ¡Evolucionó!",
+            "✨ Évolution !",
+        )
     }
     pub fn notif_evolve_body(&self, name: &str) -> String {
         self.status_evolved(name)
@@ -357,6 +439,7 @@ impl L {
             "🎭 Huh? It's Ditto!",
             "🎭 あれ？メタモン！",
             "🎭 ¿Eh? ¡Es Ditto!",
+            "🎭 Hein ? C'est Métamorph !",
         )
     }
     pub fn notif_ditto_reveal_body(&self, disguise: &str) -> String {
@@ -365,6 +448,7 @@ impl L {
             "You thought it was {disguise} — it was Ditto all along!",
             "{disguise} だと思ってた… 実はメタモンでした！",
             "Pensabas que era {disguise} — ¡en realidad era Ditto!",
+            "Vous pensiez avoir un {disguise} — c'était Métamorph depuis le début !",
         );
         s.replace("{disguise}", disguise)
     }
@@ -374,6 +458,7 @@ impl L {
             "🎭✨ Huh? A shiny Ditto!",
             "🎭✨ あれ？色違いメタモン！",
             "🎭✨ ¿Eh? ¡Un Ditto variocolor!",
+            "🎭✨ Hein ? Un Métamorph chromatique !",
         )
     }
     pub fn notif_shiny_ditto_reveal_body(&self, disguise: &str) -> String {
@@ -382,11 +467,18 @@ impl L {
             "You thought it was {disguise} — it was a shiny Ditto! (1 in 64)",
             "{disguise} だと思ってた… 色違いのメタモンでした！(1/64)",
             "Pensabas que era {disguise} — ¡era un Ditto variocolor! (1 entre 64)",
+            "Vous pensiez avoir un {disguise} — c'était un Métamorph chromatique ! (1 sur 64)",
         );
         s.replace("{disguise}", disguise)
     }
     pub fn notif_graduate_title(&self) -> &'static str {
-        self.t("🎓 졸업!", "🎓 Graduated!", "🎓 卒業！", "🎓 ¡Graduado!")
+        self.t(
+            "🎓 졸업!",
+            "🎓 Graduated!",
+            "🎓 卒業！",
+            "🎓 ¡Graduado!",
+            "🎓 Diplômé !",
+        )
     }
     pub fn notif_graduate_body(&self, name: &str) -> String {
         let s = self.t(
@@ -394,6 +486,7 @@ impl L {
             "{name} — saved to your Pokédex! A new egg has arrived.",
             "{name} — 図鑑に保存！新しいタマゴが届きました。",
             "{name} — ¡guardado en tu Pokédex! Ha llegado un nuevo huevo.",
+            "{name} — ajouté à votre Pokédex ! Un nouvel œuf est arrivé.",
         );
         s.replace("{name}", name)
     }
@@ -403,6 +496,7 @@ impl L {
             "🍬 You got {count}× {item}!",
             "🍬 {item}を{count}個もらいました！",
             "🍬 ¡Has recibido {count}× {item}!",
+            "🍬 Vous avez reçu {count}× {item} !",
         );
         s.replace("{item}", item)
             .replace("{count}", &count.to_string())
@@ -412,7 +506,7 @@ impl L {
             "{window} 토큰 한도를 다 채웠어요. 열심히 쓴 만큼 사탕을 드려요 — 포켓몬에게 써서 진화시켜 보세요!",
             "You maxed out your {window} token limit. A treat for the effort — use it to evolve your Pokémon!",
             "{window}のトークン上限を使い切りました。がんばったごほうびです — ポケモンに使って進化させよう！",
-            "Has agotado tu límite de tokens {window}. Un premio por el esfuerzo — ¡úsalo para evolucionar a tu Pokémon!",
+            "Has agotado tu límite de tokens {window}. Un premio por el esfuerzo — ¡úsalo para evolucionar a tu Pokémon!", "Vous avez atteint votre limite de tokens {window}. Une récompense pour vos efforts — utilisez-la pour faire évoluer votre Pokémon !",
         );
         s.replace("{window}", window)
     }
@@ -420,7 +514,7 @@ impl L {
     // MARK: bag / items
 
     pub fn bag(&self) -> &'static str {
-        self.t("가방", "Bag", "バッグ", "Bolsa")
+        self.t("가방", "Bag", "バッグ", "Bolsa", "Sac")
     }
     pub fn bag_empty_title(&self) -> &'static str {
         self.t(
@@ -428,16 +522,17 @@ impl L {
             "Your bag is empty!",
             "バッグはまだ空っぽです！",
             "¡Tu bolsa todavía está vacía!",
+            "Votre sac est vide !",
         )
     }
     pub fn use_item(&self) -> &'static str {
-        self.t("사용하기", "Use", "つかう", "Usar")
+        self.t("사용하기", "Use", "つかう", "Usar", "Utiliser")
     }
     pub fn use_(&self) -> &'static str {
-        self.t("사용", "Use", "つかう", "Usar")
+        self.t("사용", "Use", "つかう", "Usar", "Utiliser")
     }
     pub fn cancel(&self) -> &'static str {
-        self.t("취소", "Cancel", "キャンセル", "Cancelar")
+        self.t("취소", "Cancel", "キャンセル", "Cancelar", "Annuler")
     }
     pub fn use_on_current(&self, name: &str) -> String {
         let s = self.t(
@@ -445,6 +540,7 @@ impl L {
             "Use on {name}?",
             "{name} に使いますか？",
             "¿Usar en {name}?",
+            "Utiliser sur {name} ?",
         );
         s.replace("{name}", name)
     }
@@ -454,6 +550,7 @@ impl L {
             "Usable after hatching",
             "孵化後に使えます",
             "Se puede usar después de eclosionar",
+            "Utilisable après l'éclosion",
         )
     }
     pub fn use_needs_pokemon(&self) -> &'static str {
@@ -462,6 +559,7 @@ impl L {
             "No Pokémon to use it on",
             "使えるポケモンがいません",
             "No hay ningún Pokémon en quien usarlo",
+            "Aucun Pokémon sur qui l'utiliser",
         )
     }
     pub fn mint_effect_hint(&self) -> &'static str {
@@ -470,21 +568,27 @@ impl L {
             "Random nature",
             "せいかくランダム変更",
             "Naturaleza aleatoria",
+            "Nature aléatoire",
         )
     }
 
     /// Item display name (official local names, as for species).
     pub fn item_name(&self, kind: ItemKind) -> &'static str {
         match kind {
-            ItemKind::RareCandy => {
-                self.t("이상한 사탕", "Rare Candy", "ふしぎなアメ", "Caramelo Raro")
-            }
-            ItemKind::Mint => self.t("민트", "Mint", "ミント", "Menta"),
+            ItemKind::RareCandy => self.t(
+                "이상한 사탕",
+                "Rare Candy",
+                "ふしぎなアメ",
+                "Caramelo Raro",
+                "Super Bonbon",
+            ),
+            ItemKind::Mint => self.t("민트", "Mint", "ミント", "Menta", "Menthe"),
             ItemKind::ShinyCharm => self.t(
                 "이로치 부적",
                 "Shiny Charm",
                 "ひかるおまもり",
                 "Amuleto Iris",
+                "Charme Chroma",
             ),
         }
     }
@@ -499,7 +603,7 @@ impl L {
                     "현재 포켓몬의 경험치를 {xp} 올려줘요.",
                     "Raises your Pokémon's EXP by {xp}.",
                     "ポケモンの経験値を{xp}上げます。",
-                    "Aumenta la experiencia de tu Pokémon en {xp}.",
+                    "Aumenta la experiencia de tu Pokémon en {xp}.", "Augmente l'EXP de votre Pokémon de {xp}.",
                 );
                 s.replace("{xp}", &xp)
             }
@@ -507,14 +611,14 @@ impl L {
                 "현재 포켓몬의 성격을 랜덤으로 바꿔줘요.",
                 "Randomly changes your Pokémon's nature.",
                 "ポケモンのせいかくをランダムに変えます。",
-                "Cambia aleatoriamente la naturaleza de tu Pokémon.",
+                "Cambia aleatoriamente la naturaleza de tu Pokémon.", "Change aléatoirement la nature de votre Pokémon.",
             )
             .to_string(),
             ItemKind::ShinyCharm => self.t(
                 "보유하면 이로치 포켓몬이 태어날 확률이 올라가요.",
                 "While owned, raises the chance of hatching a shiny.",
                 "持っていると色違いが生まれる確率が上がります。",
-                "Mientras lo tengas, aumenta la probabilidad de que nazca un Pokémon variocolor.",
+                "Mientras lo tengas, aumenta la probabilidad de que nazca un Pokémon variocolor.", "Tant que vous le possédez, augmente les chances d'obtenir un chromatique.",
             )
             .to_string(),
         }
@@ -523,7 +627,7 @@ impl L {
     // MARK: shop
 
     pub fn shop(&self) -> &'static str {
-        self.t("상점", "Shop", "ショップ", "Tienda")
+        self.t("상점", "Shop", "ショップ", "Tienda", "Boutique")
     }
     pub fn spendable_tokens(&self) -> &'static str {
         self.t(
@@ -531,6 +635,7 @@ impl L {
             "Spendable tokens",
             "使えるトークン",
             "Tokens disponibles",
+            "Tokens dépensables",
         )
     }
     pub fn shop_hint(&self) -> &'static str {
@@ -539,10 +644,11 @@ impl L {
             "Spend the tokens you've used on items.",
             "使ったトークンでアイテムを購入できます。",
             "Usa los tokens que has consumido para comprar objetos.",
+            "Dépensez les tokens que vous avez consommés en objets.",
         )
     }
     pub fn buy(&self) -> &'static str {
-        self.t("구매", "Buy", "購入", "Comprar")
+        self.t("구매", "Buy", "購入", "Comprar", "Acheter")
     }
     pub fn buy_confirm(&self, name: &str) -> String {
         let s = self.t(
@@ -550,6 +656,7 @@ impl L {
             "Buy {name}?",
             "{name} を購入しますか？",
             "¿Comprar {name}?",
+            "Acheter {name} ?",
         );
         s.replace("{name}", name)
     }
@@ -559,17 +666,24 @@ impl L {
             "Not enough tokens",
             "トークンが足りません",
             "No tienes suficientes tokens",
+            "Tokens insuffisants",
         )
     }
     pub fn owned_count(&self, n: i64) -> String {
-        let s = self.t("보유 ×{n}", "Owned ×{n}", "所持 ×{n}", "En posesión ×{n}");
+        let s = self.t(
+            "보유 ×{n}",
+            "Owned ×{n}",
+            "所持 ×{n}",
+            "En posesión ×{n}",
+            "Possédé ×{n}",
+        );
         s.replace("{n}", &n.to_string())
     }
     pub fn shop_price_label(&self) -> &'static str {
-        self.t("가격", "Price", "価格", "Precio")
+        self.t("가격", "Price", "価格", "Precio", "Prix")
     }
     pub fn owned_already(&self) -> &'static str {
-        self.t("보유 중", "Owned", "所持済み", "En posesión")
+        self.t("보유 중", "Owned", "所持済み", "En posesión", "Possédé")
     }
     pub fn shiny_charm_effect_hint(&self) -> &'static str {
         self.t(
@@ -577,6 +691,7 @@ impl L {
             "Shiny rate ↑ · active",
             "色違い率↑ · 適用中",
             "Prob. variocolor ↑ · activo",
+            "Taux chromatique ↑ · actif",
         )
     }
 
@@ -589,19 +704,28 @@ impl L {
                 "Pokémon Egg",
                 "ポケモンのタマゴ",
                 "Huevo Pokémon",
+                "Œuf Pokémon",
             ),
             Some(Rarity::Uncommon) => self.t(
                 "고급 알",
                 "Uncommon Egg",
                 "アンコモンのタマゴ",
                 "Huevo poco común",
+                "Œuf peu commun",
             ),
-            Some(Rarity::Rare) => self.t("희귀 알", "Rare Egg", "レアのタマゴ", "Huevo raro"),
+            Some(Rarity::Rare) => self.t(
+                "희귀 알",
+                "Rare Egg",
+                "レアのタマゴ",
+                "Huevo raro",
+                "Œuf rare",
+            ),
             Some(Rarity::Legendary) => self.t(
                 "전설 알",
                 "Legendary Egg",
                 "でんせつのタマゴ",
                 "Huevo legendario",
+                "Œuf légendaire",
             ),
         }
     }
@@ -613,6 +737,7 @@ impl L {
                     "Send off your current Pokémon and start fresh with a new egg.",
                     "いまのポケモンを手放して新しいタマゴからやり直します。",
                     "Suelta a tu Pokémon actual y empieza de nuevo con un huevo nuevo.",
+                    "Laissez partir votre Pokémon actuel et repartez d'un œuf tout neuf.",
                 )
                 .to_string();
         };
@@ -622,6 +747,7 @@ impl L {
             "Send off your current Pokémon for an egg guaranteed to hatch {r} or better.",
             "いまのポケモンを手放して {r} 以上が確定で孵るタマゴをもらいます。",
             "Suelta a tu Pokémon actual y consigue un huevo garantizado de {r} o superior.",
+            "Laissez partir votre Pokémon actuel contre un œuf garanti {r} ou mieux.",
         );
         s.replace("{r}", r)
     }
@@ -632,6 +758,7 @@ impl L {
             "{r} or better",
             "{r} 以上確定",
             "{r} o superior garantizado",
+            "{r} ou mieux garanti",
         );
         s.replace("{r}", r)
     }
@@ -641,6 +768,7 @@ impl L {
             "Send off {mon} for the {egg}?",
             "{mon} を手放して {egg} にしますか？",
             "¿Soltar a {mon} y cambiarlo por {egg}?",
+            "Laisser partir {mon} contre {egg} ?",
         );
         s.replace("{mon}", mon_name).replace("{egg}", egg_name)
     }
@@ -650,6 +778,7 @@ impl L {
             "⚠️ This one is shiny! Really send it off?",
             "⚠️ 色違いです！本当に手放しますか？",
             "⚠️ ¡Este es variocolor! ¿Seguro que quieres soltarlo?",
+            "⚠️ Celui-ci est chromatique ! Le laisser partir quand même ?",
         )
     }
     pub fn fresh_egg_discard_shiny(&self) -> &'static str {
@@ -658,28 +787,35 @@ impl L {
             "Send shiny off",
             "手放す",
             "Soltar variocolor",
+            "Laisser partir le chromatique",
         )
     }
 
     // MARK: app chrome (Phase 2 GUI — tab bar, home, limits, settings)
 
     pub fn home(&self) -> &'static str {
-        self.t("홈", "Home", "ホーム", "Inicio")
+        self.t("홈", "Home", "ホーム", "Inicio", "Accueil")
     }
     pub fn collection(&self) -> &'static str {
-        self.t("컬렉션", "Collection", "コレクション", "Colección")
+        self.t(
+            "컬렉션",
+            "Collection",
+            "コレクション",
+            "Colección",
+            "Collection",
+        )
     }
     pub fn settings(&self) -> &'static str {
-        self.t("설정", "Settings", "設定", "Ajustes")
+        self.t("설정", "Settings", "設定", "Ajustes", "Réglages")
     }
     pub fn back(&self) -> &'static str {
-        self.t("뒤로", "Back", "戻る", "Atrás")
+        self.t("뒤로", "Back", "戻る", "Atrás", "Retour")
     }
     pub fn quit(&self) -> &'static str {
-        self.t("종료", "Quit", "終了", "Salir")
+        self.t("종료", "Quit", "終了", "Salir", "Quitter")
     }
     pub fn language(&self) -> &'static str {
-        self.t("언어", "Language", "言語", "Idioma")
+        self.t("언어", "Language", "言語", "Idioma", "Langue")
     }
     pub fn week_starts(&self) -> &'static str {
         self.t(
@@ -687,13 +823,14 @@ impl L {
             "Week starts on",
             "週の開始日は",
             "La semana empieza el",
+            "La semaine commence le",
         )
     }
     pub fn monday(&self) -> &'static str {
-        self.t("월요일", "Monday", "月曜日", "Lunes")
+        self.t("월요일", "Monday", "月曜日", "Lunes", "Lundi")
     }
     pub fn sunday(&self) -> &'static str {
-        self.t("일요일", "Sunday", "日曜日", "Domingo")
+        self.t("일요일", "Sunday", "日曜日", "Domingo", "Dimanche")
     }
 
     // MARK: settings — launch at login, floating pet, save transfer
@@ -704,6 +841,7 @@ impl L {
             "Launch at login",
             "ログイン時に起動",
             "Iniciar al iniciar sesión",
+            "Lancer à l'ouverture de session",
         )
     }
     pub fn launch_at_login_hint(&self) -> &'static str {
@@ -712,6 +850,7 @@ impl L {
             "Starts PokeTokenBar when you sign in (XDG autostart).",
             "サインイン時に PokeTokenBar を起動します（XDG autostart）。",
             "Inicia PokeTokenBar al iniciar sesión (XDG autostart).",
+            "Démarre PokeTokenBar à l'ouverture de session (autostart XDG).",
         )
     }
     pub fn floating_pet(&self) -> &'static str {
@@ -720,6 +859,7 @@ impl L {
             "Floating pet",
             "フローティングペット",
             "Mascota flotante",
+            "Compagnon flottant",
         )
     }
     pub fn floating_pet_hint(&self) -> &'static str {
@@ -727,7 +867,7 @@ impl L {
             "컴패니언이 데스크톱 위에 떠 있어요. 클릭하면 앱이 열리고, 우클릭하면 메뉴가 나와요.",
             "Your companion lives on the desktop. Click to open the app; right-click for the menu.",
             "パートナーがデスクトップ上に常駐します。クリックでアプリを開き、右クリックでメニュー。",
-            "Tu compañero vive en el escritorio. Clic para abrir la app; clic derecho para el menú.",
+            "Tu compañero vive en el escritorio. Clic para abrir la app; clic derecho para el menú.", "Votre compagnon vit sur le bureau. Cliquez pour ouvrir l'app ; clic droit pour le menu.",
         )
     }
     pub fn pet_size(&self) -> &'static str {
@@ -736,6 +876,7 @@ impl L {
             "Pet size",
             "ペットのサイズ",
             "Tamaño de la mascota",
+            "Taille du compagnon",
         )
     }
     pub fn save_data(&self) -> &'static str {
@@ -744,6 +885,7 @@ impl L {
             "Save data",
             "セーブデータ",
             "Datos de guardado",
+            "Sauvegarde",
         )
     }
     pub fn save_hint(&self) -> &'static str {
@@ -751,7 +893,7 @@ impl L {
             "기기 교체용 세이브를 내보내고 다른 기기에서 가져와요. 가져오기 전에는 현재 상태를 백업해요.",
             "Export a save to move to another device and import it there. Importing backs up the current state first.",
             "機種変更用のセーブを出力し、別の機種で読み込みます。読み込む前に現在の状態をバックアップします。",
-            "Exporta un guardado para cambiar de dispositivo e impórtalo allí. La importación respalda el estado actual primero.",
+            "Exporta un guardado para cambiar de dispositivo e impórtalo allí. La importación respalda el estado actual primero.", "Exportez une sauvegarde pour passer à un autre appareil et importez-la là-bas. L'import sauvegarde d'abord l'état actuel.",
         )
     }
     pub fn export_save(&self) -> &'static str {
@@ -760,6 +902,7 @@ impl L {
             "Export save…",
             "セーブを出力…",
             "Exportar guardado…",
+            "Exporter la sauvegarde…",
         )
     }
     pub fn import_save(&self) -> &'static str {
@@ -768,6 +911,7 @@ impl L {
             "Import save…",
             "セーブを読み込み…",
             "Importar guardado…",
+            "Importer une sauvegarde…",
         )
     }
     pub fn import_confirm(&self, dex: i64, tokens: i64) -> String {
@@ -775,13 +919,13 @@ impl L {
             "현재 진행을 도감 {dex}종·평생 토큰 {tokens}의 세이브로 교체할까요?",
             "Replace the current progress with a save of {dex} dex species and {tokens} lifetime tokens?",
             "現在の進行を（図鑑 {dex}種・生涯トークン {tokens}）のセーブで置き換えますか？",
-            "¿Reemplazar el progreso actual con un guardado de {dex} especies de Pokédex y {tokens} tokens de por vida?",
+            "¿Reemplazar el progreso actual con un guardado de {dex} especies de Pokédex y {tokens} tokens de por vida?", "Remplacer la progression actuelle par une sauvegarde de {dex} espèces au Pokédex et {tokens} tokens cumulés ?",
         );
         s.replace("{dex}", &dex.to_string())
             .replace("{tokens}", &tokens.to_string())
     }
     pub fn replace(&self) -> &'static str {
-        self.t("교체", "Replace", "置き換える", "Reemplazar")
+        self.t("교체", "Replace", "置き換える", "Reemplazar", "Remplacer")
     }
     pub fn import_not_save(&self) -> &'static str {
         self.t(
@@ -789,6 +933,7 @@ impl L {
             "That file is not a PokeTokenBar save.",
             "そのファイルは PokeTokenBar のセーブではありません。",
             "Ese archivo no es un guardado de PokeTokenBar.",
+            "Ce fichier n'est pas une sauvegarde PokeTokenBar.",
         )
     }
     pub fn import_newer(&self, found: u32) -> String {
@@ -796,7 +941,7 @@ impl L {
             "그 세이브는 더 새 버전의 세이브예요 (스키마 {found}). 앱을 업데이트하세요.",
             "That save is from a newer version (schema {found}). Update the app first.",
             "そのセーブはより新しいバージョンのものです（スキマ {found}）。先にアプリを更新してください。",
-            "Ese guardado es de una versión más nueva (esquema {found}). Actualiza la app primero.",
+            "Ese guardado es de una versión más nueva (esquema {found}). Actualiza la app primero.", "Cette sauvegarde vient d'une version plus récente (schéma {found}). Mettez d'abord l'app à jour.",
         );
         s.replace("{found}", &found.to_string())
     }
@@ -806,6 +951,7 @@ impl L {
             "That file is too large to be a save (8 MB limit).",
             "そのファイルはセーブとしては大きすぎます（8 MB 上限）。",
             "Ese archivo es demasiado grande para ser un guardado (límite de 8 MB).",
+            "Ce fichier est trop volumineux pour une sauvegarde (limite de 8 Mo).",
         )
     }
     pub fn import_backup_failed(&self) -> &'static str {
@@ -814,6 +960,7 @@ impl L {
             "The import was cancelled: the current state could not be backed up first.",
             "読み込みをキャンセルしました：現在の状態を先にバックアップできませんでした。",
             "Se canceló la importación: no se pudo respaldar el estado actual antes.",
+            "Import annulé : l'état actuel n'a pas pu être sauvegardé au préalable.",
         )
     }
     pub fn import_failed(&self) -> &'static str {
@@ -822,6 +969,7 @@ impl L {
             "The save could not be imported (file error).",
             "セーブを読み込めませんでした（ファイルエラー）。",
             "No se pudo importar el guardado (error de archivo).",
+            "La sauvegarde n'a pas pu être importée (erreur de fichier).",
         )
     }
     pub fn save_exported(&self) -> &'static str {
@@ -830,6 +978,7 @@ impl L {
             "Save exported.",
             "セーブを出力しました。",
             "Guardado exportado.",
+            "Sauvegarde exportée.",
         )
     }
     pub fn save_imported(&self) -> &'static str {
@@ -838,10 +987,11 @@ impl L {
             "Save imported. The previous state was backed up.",
             "セーブを読み込みました。前の状態はバックアップ済みです。",
             "Guardado importado. El estado anterior se respaldó.",
+            "Sauvegarde importée. L'état précédent a été sauvegardé.",
         )
     }
     pub fn floating_pet_menu_open(&self) -> &'static str {
-        self.t("열기", "Open", "開く", "Abrir")
+        self.t("열기", "Open", "開く", "Abrir", "Ouvrir")
     }
     pub fn floating_pet_menu_hide(&self) -> &'static str {
         self.t(
@@ -849,25 +999,26 @@ impl L {
             "Hide floating pet",
             "ペットを非表示",
             "Ocultar mascota flotante",
+            "Masquer le compagnon flottant",
         )
     }
     pub fn error_heading(&self) -> &'static str {
-        self.t("오류", "Error", "エラー", "Error")
+        self.t("오류", "Error", "エラー", "Error", "Erreur")
     }
     pub fn ok(&self) -> &'static str {
-        self.t("확인", "OK", "OK", "OK")
+        self.t("확인", "OK", "OK", "OK", "OK")
     }
     pub fn today(&self) -> &'static str {
-        self.t("오늘", "Today", "今日", "Hoy")
+        self.t("오늘", "Today", "今日", "Hoy", "Aujourd'hui")
     }
     pub fn week(&self) -> &'static str {
-        self.t("이번 주", "Week", "今週", "Semana")
+        self.t("이번 주", "Week", "今週", "Semana", "Semaine")
     }
     pub fn month(&self) -> &'static str {
-        self.t("이번 달", "Month", "今月", "Mes")
+        self.t("이번 달", "Month", "今月", "Mes", "Mois")
     }
     pub fn burn(&self) -> &'static str {
-        self.t("소모", "Burn", "燃焼", "Consumo")
+        self.t("소모", "Burn", "燃焼", "Consumo", "Consommation")
     }
     pub fn limits_official(&self) -> &'static str {
         self.t(
@@ -875,6 +1026,7 @@ impl L {
             "Limits (official)",
             "上限（公式）",
             "Límites (oficial)",
+            "Limites (officielles)",
         )
     }
     pub fn five_hour_session(&self) -> &'static str {
@@ -883,13 +1035,14 @@ impl L {
             "5-hour session",
             "5時間セッション",
             "Sesión de 5 horas",
+            "Session de 5 heures",
         )
     }
     pub fn weekly(&self) -> &'static str {
-        self.t("주간", "Weekly", "週間", "Semanal")
+        self.t("주간", "Weekly", "週間", "Semanal", "Hebdomadaire")
     }
     pub fn plan(&self, p: &str) -> String {
-        let s = self.t("플랜 {p}", "Plan {p}", "プラン {p}", "Plan {p}");
+        let s = self.t("플랜 {p}", "Plan {p}", "プラン {p}", "Plan {p}", "Plan {p}");
         s.replace("{p}", p)
     }
     pub fn limits_unavailable(&self) -> &'static str {
@@ -898,28 +1051,35 @@ impl L {
             "Not available",
             "利用不可",
             "No disponible",
+            "Indisponible",
         )
     }
     pub fn limit_reached(&self) -> &'static str {
-        self.t("한도 도달", "Limit reached", "上限到達", "Límite alcanzado")
+        self.t(
+            "한도 도달",
+            "Limit reached",
+            "上限到達",
+            "Límite alcanzado",
+            "Limite atteinte",
+        )
     }
     pub fn provider_active(&self) -> &'static str {
-        self.t("활성", "Active", "アクティブ", "Activo")
+        self.t("활성", "Active", "アクティブ", "Activo", "Actif")
     }
     pub fn provider_idle(&self) -> &'static str {
-        self.t("가만", "Idle", "アイドル", "Inactivo")
+        self.t("가만", "Idle", "アイドル", "Inactivo", "Inactif")
     }
     pub fn tok_in(&self) -> &'static str {
-        self.t("in", "in", "in", "in")
+        self.t("in", "in", "in", "in", "in")
     }
     pub fn tok_out(&self) -> &'static str {
-        self.t("out", "out", "out", "out")
+        self.t("out", "out", "out", "out", "out")
     }
     pub fn tok_cache_write(&self) -> &'static str {
-        self.t("cache w", "cache w", "cache w", "cache w")
+        self.t("cache w", "cache w", "cache w", "cache w", "cache w")
     }
     pub fn tok_cache_read(&self) -> &'static str {
-        self.t("cache r", "cache r", "cache r", "cache r")
+        self.t("cache r", "cache r", "cache r", "cache r", "cache r")
     }
     pub fn dex_page_prev(&self) -> &'static str {
         self.t(
@@ -927,10 +1087,17 @@ impl L {
             "Previous page",
             "前のページ",
             "Página anterior",
+            "Page précédente",
         )
     }
     pub fn dex_page_next(&self) -> &'static str {
-        self.t("다음 페이지", "Next page", "次のページ", "Página siguiente")
+        self.t(
+            "다음 페이지",
+            "Next page",
+            "次のページ",
+            "Página siguiente",
+            "Page suivante",
+        )
     }
 }
 
@@ -970,11 +1137,13 @@ mod tests {
     fn language_codes_and_labels() {
         assert_eq!(Language::from_code("en"), Some(Language::En));
         assert_eq!(Language::from_code("JA"), Some(Language::Ja));
-        assert_eq!(Language::from_code("fr"), None);
+        assert_eq!(Language::from_code("fr"), Some(Language::Fr));
+        assert_eq!(Language::from_code("de"), None);
         assert_eq!(Language::En.label(), "English");
         assert_eq!(Language::Ko.label(), "한국어");
         assert_eq!(Language::Ja.label(), "日本語");
         assert_eq!(Language::Es.label(), "Español");
+        assert_eq!(Language::Fr.label(), "Français");
     }
 
     #[test]
@@ -1000,6 +1169,14 @@ mod tests {
         assert_eq!(
             L::new(Language::En).status_evolved("Charizard"),
             "Evolved into Charizard!"
+        );
+        assert_eq!(
+            L::new(Language::Fr).status_focus(),
+            "En pleine concentration."
+        );
+        assert_eq!(
+            L::new(Language::Fr).status_evolved("Dracaufeu"),
+            "A évolué en Dracaufeu !"
         );
         assert_eq!(
             L::new(Language::Ko).status_evolved("리ザ드온"),

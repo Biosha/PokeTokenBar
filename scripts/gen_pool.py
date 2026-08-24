@@ -6,7 +6,7 @@ Mirrors the macOS app's runtime data sources:
                (PokeAPIClient.fetchBaseIndex GraphQL query)
 - evolution trees: /evolution-chain/{base}, children with species id > 649 dropped
                (EvoLine.keepingAnimatedSprites, PokemonAssets.animatedSpeciesIDs = 1...649)
-- names      : ko / en / ja-Hrkt(fallback ja) / es, per species on every chain
+- names      : ko / en / ja-Hrkt(fallback ja) / es / fr, per species on every chain
 """
 import json
 import re
@@ -16,7 +16,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 BASE = "https://pokeapi.co/api/v2"
-LANGS = {"ko", "en", "ja-Hrkt", "ja", "es"}
+LANGS = {"ko", "en", "ja-Hrkt", "ja", "es", "fr"}
 MAX_ID = 649
 DITTO = 132
 UA = {"User-Agent": "PokeTokenBar-gnome-port/0.1 (pool generation, one-off)"}
@@ -136,7 +136,8 @@ def main():
     a("")
     a("use crate::companion::Rarity;")
     a("")
-    a("/// One species: official names in the four app languages (ja = ja-Hrkt, fallback ja)")
+    a("/// One species: official names in the app languages (ja = ja-Hrkt, fallback ja;")
+    a("/// fr is port-specific)")
     a("/// plus the hatch-relevant flags (used to derive a line's rarity for species that are")
     a("/// not in the hatch pool, e.g. Ditto).")
     a("#[derive(Debug, Clone, Copy)]")
@@ -147,6 +148,7 @@ def main():
     a("    pub ko: &'static str,")
     a("    pub ja: &'static str,")
     a("    pub es: &'static str,")
+    a("    pub fr: &'static str,")
     a("    pub capture_rate: u16,")
     a("    pub legendary: bool,")
     a("    pub mythical: bool,")
@@ -160,6 +162,7 @@ def main():
             f"    SpeciesRow {{ id: {sp['id']}, slug: \"{esc(sp['slug'])}\", "
             f"en: \"{esc(n.get('en', ''))}\", ko: \"{esc(n.get('ko', ''))}\", "
             f"ja: \"{esc(ja_name(sp))}\", es: \"{esc(n.get('es', ''))}\", "
+            f"fr: \"{esc(n.get('fr', ''))}\", "
             f"capture_rate: {sp['capture_rate']}, "
             f"legendary: {str(sp['is_legendary']).lower()}, "
             f"mythical: {str(sp['is_mythical']).lower()} }},"

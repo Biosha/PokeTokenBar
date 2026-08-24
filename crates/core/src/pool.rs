@@ -49,8 +49,8 @@ pub const CACHE_TTL_SECS: i64 = 30 * 86_400;
 // Data model
 // ---------------------------------------------------------------------------
 
-/// One species: official names in the four app languages (ja = ja-Hrkt, fallback ja)
-/// plus the hatch-relevant flags.
+/// One species: official names in the app languages (ja = ja-Hrkt, fallback ja; fr is
+/// port-specific) plus the hatch-relevant flags.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SpeciesRec {
     pub id: u16,
@@ -59,6 +59,9 @@ pub struct SpeciesRec {
     pub ko: String,
     pub ja: String,
     pub es: String,
+    /// Port-specific (absent from caches written before French support).
+    #[serde(default)]
+    pub fr: String,
     pub capture_rate: u16,
     pub legendary: bool,
     pub mythical: bool,
@@ -245,6 +248,7 @@ pub fn bundled() -> PoolData {
             ko: s.ko.to_string(),
             ja: s.ja.to_string(),
             es: s.es.to_string(),
+            fr: s.fr.to_string(),
             capture_rate: s.capture_rate,
             legendary: s.legendary,
             mythical: s.mythical,
@@ -347,6 +351,7 @@ pub fn localized_name(id: u16, lang: Language) -> String {
         Language::Ko => s.ko.as_str(),
         Language::Ja => s.ja.as_str(),
         Language::Es => s.es.as_str(),
+        Language::Fr => s.fr.as_str(),
         Language::En => s.en.as_str(),
     };
     if chosen.is_empty() {
@@ -581,7 +586,7 @@ mod tests {
             let line = line_by_id(b.id).unwrap_or_else(|| panic!("base {} unresolvable", b.id));
             assert_eq!(line.slug, species_by_id(b.id).unwrap().slug);
             assert!(!line.en.is_empty());
-            for lang in [Language::En, Language::Ko, Language::Ja, Language::Es] {
+            for lang in Language::ALL {
                 let name = localized_name(b.id, lang);
                 assert!(
                     !name.is_empty() && !name.starts_with('#'),

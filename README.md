@@ -154,7 +154,7 @@ PTB_NOTES_FILE=notes.md scripts/release.sh minor   # custom release notes
   refreshed in the background) — `PTB_POOL_OFFLINE=1` disables the live refresh
   and serves the bundled fallback.
 - Provider search root: `POKE_TOKEN_BAR_HOME` (defaults to `$HOME`).
-- UI language override: `PTB_LANG=en|ko|ja|es` (wins over the saved setting).
+- UI language override: `PTB_LANG=en|ko|ja|es|fr` (wins over the saved setting).
 - App instance: `PTB_APP_ID` (bus name, to run a second instance side by side);
   `PTB_NO_PET=1` builds the floating pet inert (diagnostics).
 

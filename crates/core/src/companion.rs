@@ -567,6 +567,7 @@ impl CompanionState {
             Language::Ko => s.ko,
             Language::Ja => s.ja,
             Language::Es => s.es,
+            Language::Fr => s.fr,
             Language::En => s.en.clone(),
         };
         if name.is_empty() {

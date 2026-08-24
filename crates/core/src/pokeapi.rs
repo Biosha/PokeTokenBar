@@ -50,12 +50,19 @@ fn cache_is_fresh(fetched_at: i64, now: i64) -> bool {
     now - fetched_at < CACHE_TTL_SECS
 }
 
+/// True when the snapshot carries every language's names. A snapshot written before a
+/// language was added (French) has empty names for it, and would otherwise be served —
+/// English — for the rest of its 30-day TTL; refetch instead.
+fn has_localized_names(data: &PoolData) -> bool {
+    data.species(1).is_some_and(|s| !s.fr.is_empty())
+}
+
 /// Background refresh entry point (see [`crate::pool::init_live`]): serve fresh
 /// disk data when within the TTL, otherwise fetch the live pool, persist it, and
 /// hot-swap it into the process pool.
 pub(crate) fn refresh_pool() -> anyhow::Result<String> {
     if let Some(cache) = crate::pool::read_cache() {
-        if cache_is_fresh(cache.fetched_at, now_secs()) {
+        if cache_is_fresh(cache.fetched_at, now_secs()) && has_localized_names(&cache.data) {
             return Ok("disk snapshot within 30-day TTL — no fetch".to_string());
         }
     }
@@ -191,6 +198,7 @@ fn to_species_rec(id: u16, d: &SpeciesDto) -> SpeciesRec {
     let mut ja_hrkt = String::new();
     let mut ja = String::new();
     let mut es = String::new();
+    let mut fr = String::new();
     for n in &d.names {
         match n.language.name.as_str() {
             "ko" => ko = n.name.clone(),
@@ -198,6 +206,7 @@ fn to_species_rec(id: u16, d: &SpeciesDto) -> SpeciesRec {
             "ja-Hrkt" => ja_hrkt = n.name.clone(),
             "ja" => ja = n.name.clone(),
             "es" => es = n.name.clone(),
+            "fr" => fr = n.name.clone(),
             _ => {}
         }
     }
@@ -211,6 +220,7 @@ fn to_species_rec(id: u16, d: &SpeciesDto) -> SpeciesRec {
         ko,
         ja: ja_hrkt,
         es,
+        fr,
         capture_rate: d.capture_rate.max(0) as u16,
         legendary: d.is_legendary,
         mythical: d.is_mythical,
@@ -600,5 +610,16 @@ mod tests {
         assert!(note2.contains("within 30-day TTL"), "unexpected: {note2}");
 
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn a_snapshot_without_french_names_is_not_served() {
+        let mut data = crate::pool::bundled();
+        assert!(has_localized_names(&data), "bundled snapshot has fr names");
+        // A cache written before French support: fr empty everywhere.
+        for s in data.species.iter_mut().flatten() {
+            s.fr.clear();
+        }
+        assert!(!has_localized_names(&data));
     }
 }
