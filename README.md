@@ -122,7 +122,7 @@ cargo run -p poketoken-cli -- limits              # Claude + Codex windows (--js
 ```bash
 sudo apt install dpkg-dev libgtk-4-dev libadwaita-1-dev curl
 scripts/make-deb.sh                 # release build + assembly + dpkg-deb
-sudo dpkg -i dist/poketoken_0.1.0_amd64.deb
+sudo dpkg -i dist/poketoken_0.1.1_amd64.deb
 ```
 
 Releases are cut from GitHub Actions (**Release** workflow → pick patch/minor/major): it bumps
