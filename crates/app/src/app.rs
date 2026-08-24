@@ -2559,8 +2559,12 @@ fn stat_value_label() -> gtk::Label {
     label
 }
 
+/// A stat line: title on the left, monospace value as a suffix. `ActionRow::child` would
+/// replace the row's whole content — title included — so the value goes in as a suffix.
 fn stat_row(title: &str, value: &gtk::Label) -> adw::ActionRow {
-    adw::ActionRow::builder().title(title).child(value).build()
+    let row = adw::ActionRow::builder().title(title).build();
+    row.add_suffix(value);
+    row
 }
 
 fn clear_box(box_: &gtk::Box) {
