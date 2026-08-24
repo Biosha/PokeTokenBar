@@ -166,15 +166,8 @@ pub(crate) struct Ui {
     // settings
     back_btn: gtk::Button,
     settings_title: gtk::Label,
-    lang_label: gtk::Label,
-    weekday_label: gtk::Label,
-    // `ComboBoxText` is deprecated in GTK 4.10 (hence the allows below: enabling the
-    // `v4_10` feature for the FileDialog switches on the deprecation attrs) — but its
-    // 4.10 replacement, `StringCombo`, is not in this environment's gtk4 bindings.
-    #[allow(deprecated)]
-    lang_combo: gtk::ComboBoxText,
-    #[allow(deprecated)]
-    weekday_combo: gtk::ComboBoxText,
+    lang_row: adw::ComboRow,
+    weekday_row: adw::ComboRow,
     // worker→main hand-offs
     sprite_for: Arc<Mutex<String>>,
     pub(crate) sprite_queue: Arc<Mutex<Option<SpriteResult>>>,
@@ -188,10 +181,10 @@ pub(crate) struct Ui {
     // settings — launch at login + floating pet rows
     autostart_switch: adw::SwitchRow,
     pet_switch: adw::SwitchRow,
-    pet_size_row: adw::ActionRow,
+    pet_size_row: adw::SpinRow,
     // settings — save transfer
-    export_btn: gtk::Button,
-    import_btn: gtk::Button,
+    export_row: adw::ActionRow,
+    import_row: adw::ActionRow,
     save_hint: gtk::Label,
 }
 
@@ -520,78 +513,39 @@ pub(crate) fn build_window(app: &adw::Application) -> Ui {
     s_body.set_margin_bottom(14);
     s_body.set_margin_start(14);
     s_body.set_margin_end(14);
-    let general_card = card();
-    let general_col = vbox(0);
-    let lang_row = hbox(10);
-    let lang_label = gtk::Label::new(Some("Language"));
-    lang_label.set_halign(gtk::Align::Start);
-    lang_row.append(&lang_label);
-    let lang_spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    lang_spacer.set_hexpand(true);
-    lang_row.append(&lang_spacer);
-    #[allow(deprecated)] // see the Ui field note: StringCombo is unavailable here
-    let lang_combo = gtk::ComboBoxText::new();
-    #[allow(deprecated)]
-    for lang in Language::ALL {
-        lang_combo.append_text(lang.label());
-    }
-    lang_row.append(&lang_combo);
-    general_col.append(&lang_row);
-    general_col.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-    let weekday_row = hbox(10);
-    let weekday_label = gtk::Label::new(Some("Week starts on"));
-    weekday_label.set_halign(gtk::Align::Start);
-    weekday_row.append(&weekday_label);
-    let weekday_spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    weekday_spacer.set_hexpand(true);
-    weekday_row.append(&weekday_spacer);
-    #[allow(deprecated)] // see the Ui field note: StringCombo is unavailable here
-    let weekday_combo = gtk::ComboBoxText::new();
-    #[allow(deprecated)]
-    {
-        weekday_combo.append_text("Monday");
-        weekday_combo.append_text("Sunday");
-    }
-    weekday_row.append(&weekday_combo);
-    general_col.append(&weekday_row);
-    general_card.append(&general_col);
+    // Every settings card is a libadwaita `boxed-list` of rows, so titles, controls and
+    // row padding line up across the three cards (the macOS original uses one Form section).
+    let general_card = settings_list();
+    let lang_row = adw::ComboRow::builder()
+        .model(&gtk::StringList::new(
+            &Language::ALL.iter().map(|l| l.label()).collect::<Vec<_>>(),
+        ))
+        .build();
+    general_card.append(&lang_row);
+    let weekday_row = adw::ComboRow::builder().build();
+    general_card.append(&weekday_row);
     s_body.append(&general_card);
 
     // System card: launch at login + the floating desktop pet.
-    let system_card = card();
-    let system_col = vbox(0);
-    system_col.add_css_class("boxed-list");
+    let system_card = settings_list();
     let autostart_switch = adw::SwitchRow::builder().build();
     let pet_switch = adw::SwitchRow::builder().build();
-    system_col.append(&autostart_switch);
-    system_col.append(&pet_switch);
-    let pet_size_row = adw::ActionRow::builder().build();
-    let pet_size_spin = gtk::SpinButton::with_range(48.0, 160.0, 8.0);
-    pet_size_spin.set_hexpand(true);
-    // adw 1.x ActionRow is a ListBoxRow, not a Box — the control goes through set_child.
-    pet_size_row.set_child(Some(&pet_size_spin));
-    system_col.append(&pet_size_row);
-    system_card.append(&system_col);
+    system_card.append(&autostart_switch);
+    system_card.append(&pet_switch);
+    let pet_size_row = adw::SpinRow::with_range(48.0, 160.0, 8.0);
+    system_card.append(&pet_size_row);
     s_body.append(&system_card);
 
     // Save-data card: export / import the state envelope (device migration).
-    let save_card = card();
-    let save_col = vbox(8);
-    save_col.set_margin_top(10);
-    save_col.set_margin_bottom(10);
-    save_col.set_margin_start(10);
-    save_col.set_margin_end(10);
     let save_hint = caption_dim2("");
-    save_col.append(&save_hint);
-    let save_btns = hbox(8);
-    let export_btn = gtk::Button::with_label("Export…");
-    export_btn.add_css_class("flat");
-    let import_btn = gtk::Button::with_label("Import…");
-    import_btn.add_css_class("flat");
-    save_btns.append(&export_btn);
-    save_btns.append(&import_btn);
-    save_col.append(&save_btns);
-    save_card.append(&save_col);
+    save_hint.set_halign(gtk::Align::Start);
+    save_hint.set_wrap(true);
+    s_body.append(&save_hint);
+    let save_card = settings_list();
+    let export_row = activatable_row("document-save-symbolic");
+    let import_row = activatable_row("document-open-symbolic");
+    save_card.append(&export_row);
+    save_card.append(&import_row);
     s_body.append(&save_card);
 
     let version = gtk::Label::new(Some(&format!(
@@ -652,10 +606,8 @@ pub(crate) fn build_window(app: &adw::Application) -> Ui {
         collection_box,
         back_btn,
         settings_title,
-        lang_label,
-        weekday_label,
-        lang_combo,
-        weekday_combo,
+        lang_row,
+        weekday_row,
         sprite_for: Arc::new(Mutex::new(String::new())),
         sprite_queue: Arc::new(Mutex::new(None)),
         sprite_anim: Rc::new(Mutex::new(None)),
@@ -666,8 +618,8 @@ pub(crate) fn build_window(app: &adw::Application) -> Ui {
         autostart_switch,
         pet_switch,
         pet_size_row,
-        export_btn,
-        import_btn,
+        export_row,
+        import_row,
         save_hint,
     };
     // Hand the pet its `Ui` handle now that one exists (its Hide/Open actions borrow it).
@@ -712,29 +664,21 @@ fn connect_signals(ui: &Ui) {
         ui.back_btn
             .connect_clicked(move |_| go_tab(&cap, Tab::Home));
     }
-    // Language / first-weekday pickers (persist, then re-render everything).
-    #[allow(deprecated)] // ComboBoxText (see the Ui field note)
+    // Language / first-weekday pickers (persist, then re-render everything). `render_settings`
+    // writes the same values back; the `act_*` helpers no-op on an unchanged value, so the
+    // notify handlers cannot loop.
     {
         let cap = ui.clone();
-        let combo = ui.lang_combo.clone();
-        ui.lang_combo.connect_changed(move |_| {
-            if let Some(idx) = combo.active() {
-                let idx = idx as usize;
-                if idx < Language::ALL.len() {
-                    act_set_language(&cap, Language::ALL[idx].code());
-                }
+        ui.lang_row.connect_selected_notify(move |row| {
+            if let Some(lang) = Language::ALL.get(row.selected() as usize) {
+                act_set_language(&cap, lang.code());
             }
         });
     }
-    #[allow(deprecated)]
     {
         let cap = ui.clone();
-        let combo = ui.weekday_combo.clone();
-        ui.weekday_combo.connect_changed(move |_| {
-            if let Some(idx) = combo.active() {
-                act_set_weekday(&cap, idx == 0);
-            }
-        });
+        ui.weekday_row
+            .connect_selected_notify(move |row| act_set_weekday(&cap, row.selected() == 0));
     }
     // Launch at login (XDG autostart entry — the Linux port of the macOS LoginItem toggle).
     {
@@ -754,25 +698,20 @@ fn connect_signals(ui: &Ui) {
     }
     {
         let cap = ui.clone();
-        let spin = ui
-            .pet_size_row
-            .child()
-            .and_then(|c| c.downcast::<gtk::SpinButton>().ok())
-            .expect("the pet-size row holds the spin button");
-        spin.connect_value_changed(move |spin| {
-            act_set_pet_size(&cap, spin.value().round() as u32);
+        ui.pet_size_row.connect_value_notify(move |row| {
+            act_set_pet_size(&cap, row.value().round() as u32);
         });
     }
     // Save-data export / import.
     {
         let cap = ui.clone();
-        ui.export_btn
-            .connect_clicked(move |_| act_export_save(&cap));
+        ui.export_row
+            .connect_activated(move |_| act_export_save(&cap));
     }
     {
         let cap = ui.clone();
-        ui.import_btn
-            .connect_clicked(move |_| act_import_save(&cap));
+        ui.import_row
+            .connect_activated(move |_| act_import_save(&cap));
     }
     // Collection segments.
     {
@@ -2227,28 +2166,20 @@ fn log_card(row: &LogRow, l: L) -> gtk::Box {
 fn render_settings(ui: &Ui, state: &companion::CompanionState, l: &L, week_starts_monday: bool) {
     ui.back_btn.set_label(&format!("‹ {}", l.back()));
     ui.settings_title.set_text(l.settings());
-    ui.lang_label.set_text(l.language());
-    ui.weekday_label.set_text(l.week_starts());
-    #[allow(deprecated)] // ComboBoxText (see the Ui field note)
-    {
-        ui.weekday_combo.set_active(None);
-        ui.weekday_combo.remove_all();
-        ui.weekday_combo.append_text(l.monday());
-        ui.weekday_combo.append_text(l.sunday());
-        ui.weekday_combo
-            .set_active(Some(if week_starts_monday { 0 } else { 1 }));
-    }
-    // Re-localize the language combo (native labels are language-independent, but keep the
-    // active selection in sync with the persisted state).
+    ui.lang_row.set_title(l.language());
+    ui.weekday_row.set_title(l.week_starts());
+    // The weekday labels are localized, so the model is rebuilt on every render; the language
+    // labels are native names and never change (only the selection has to follow the state).
+    ui.weekday_row
+        .set_model(Some(&gtk::StringList::new(&[l.monday(), l.sunday()])));
+    ui.weekday_row
+        .set_selected(if week_starts_monday { 0 } else { 1 });
     let current = Language::from_code(&state.language).unwrap_or(Language::En);
     let idx = Language::ALL
         .iter()
         .position(|x| *x == current)
         .unwrap_or(0);
-    #[allow(deprecated)]
-    {
-        ui.lang_combo.set_active(Some(idx as u32));
-    }
+    ui.lang_row.set_selected(idx as u32);
     // System rows (the file/config is the source of truth; setting an equal value is a
     // no-op, so this never feeds back into the notify handlers).
     let cfg = Config::load();
@@ -2261,15 +2192,11 @@ fn render_settings(ui: &Ui, state: &companion::CompanionState, l: &L, week_start
     ui.pet_switch.set_active(cfg.floating_pet_enabled);
     ui.pet_size_row.set_title(l.pet_size());
     ui.pet_size_row.set_sensitive(cfg.floating_pet_enabled);
-    ui.pet_size_row
-        .child()
-        .and_then(|c| c.downcast::<gtk::SpinButton>().ok())
-        .expect("the pet-size row holds the spin button")
-        .set_value(cfg.floating_pet_size as f64);
+    ui.pet_size_row.set_value(cfg.floating_pet_size as f64);
     // Save-data card.
     ui.save_hint.set_text(l.save_hint());
-    ui.export_btn.set_label(l.export_save());
-    ui.import_btn.set_label(l.import_save());
+    ui.export_row.set_title(l.export_save());
+    ui.import_row.set_title(l.import_save());
 }
 
 fn act_set_language(ui: &Ui, code: &str) {
@@ -2552,6 +2479,22 @@ fn vbox(spacing: i32) -> gtk::Box {
 
 fn hbox(spacing: i32) -> gtk::Box {
     gtk::Box::new(gtk::Orientation::Horizontal, spacing)
+}
+
+/// A settings card: the libadwaita `boxed-list` styling every row type (`ActionRow`,
+/// `SwitchRow`, `ComboRow`, `SpinRow`) is designed for, so all three cards share one metric.
+fn settings_list() -> gtk::Box {
+    let b = card();
+    b.add_css_class("boxed-list");
+    b
+}
+
+/// A click-to-run settings row (the Adwaita idiom for what was a flat button).
+fn activatable_row(icon: &str) -> adw::ActionRow {
+    let row = adw::ActionRow::builder().activatable(true).build();
+    row.add_prefix(&gtk::Image::from_icon_name(icon));
+    row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+    row
 }
 
 fn card() -> gtk::Box {
