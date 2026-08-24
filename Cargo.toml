@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/cli",
+    "crates/app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["PokeTokenBar contributors"]
+repository = "https://github.com/chattymin/PokeTokenBar"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+anyhow = "1"
+thiserror = "2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+dirs = "5"
+clap = { version = "4", default-features = false, features = ["std", "derive"] }
+ureq = "2.12"
+rustemon = "4.6"
+tokio = { version = "1", features = ["rt", "net", "time"] }
+gif = "0.13"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

@@ -1,0 +1,100 @@
+/* PokeTokenBar window styling — mirrors the macOS original's palette.
+ *
+ * The Swift app uses semantic system colors only (no custom hex except the four rarity
+ * colors and the system orange). We do the same: libadwaita named colors + alpha() keep
+ * light/dark adaptive, and the fixed hexes match the macOS system values the original
+ * relies on (rarityColor, CompanionView.swift:3-10; .orange for XP/egg bars).
+ */
+
+@define-color ptb-orange #ff9500;
+
+/* --- Rarity badges: solid capsule, 9px bold white uppercase text
+ *   (original: font 8pt bold, padding 5/1, Capsule, white text) */
+.ptb-badge {
+    border-radius: 9999px;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.rarity-common {
+    background-color: #8e8e93;
+}
+
+.rarity-uncommon {
+    background-color: #34c759;
+}
+
+.rarity-rare {
+    background-color: #007aff;
+}
+
+.rarity-legendary {
+    background-color: #ff9500;
+}
+
+/* --- "RAISING" badge: accent-tinted capsule (original: accentColor @ 0.14) */
+.ptb-raising {
+    border-radius: 9999px;
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: bold;
+    background-color: alpha(@accent_color, 0.16);
+    color: @accent_color;
+}
+
+/* --- XP / egg-hatch progress bar: the original tints these .orange */
+progressbar.ptb-xp progress {
+    background-color: @ptb-orange;
+}
+
+progressbar.ptb-xp trough {
+    background-color: alpha(@window_fg_color, 0.08);
+}
+
+/* --- Official-limit bars: green by default, orange >= 80%, red >= 95%
+ *   (original: limitColor = .green / .orange / .red, PopoverView.swift:568-572) */
+progressbar.limit-bar progress {
+    background-color: @success_color;
+}
+
+progressbar.limit-bar.warning progress {
+    background-color: @warning_color;
+}
+
+progressbar.limit-bar.error progress {
+    background-color: @error_color;
+}
+
+/* --- Wallet figure: 24px bold, tabular digits (original: 24pt bold monospacedDigit) */
+.ptb-wallet {
+    font-size: 24px;
+    font-weight: 700;
+    font-feature-settings: "tnum" 1;
+}
+
+/* --- Sprite tile: secondary @ 0.06 background, corner radius 12
+ *   (original: Color.secondary.opacity(0.06), cornerRadius 12, CompanionView.swift:445-446) */
+.ptb-sprite-tile {
+    background-color: alpha(@window_fg_color, 0.06);
+    border-radius: 12px;
+    padding: 6px;
+}
+
+/* --- Section titles: 11px semibold uppercase, dimmed
+ *   (original: .caption semibold secondary uppercase, SettingsView.swift:435) */
+.ptb-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: alpha(@window_fg_color, 0.55);
+}
+
+/* --- Floating pet: borderless overlay window. The CSS background (not the theme's)
+ *   must be fully transparent so the sprite floats on the desktop with no chrome
+ *   (original: NSPanel with clear backgroundColor + isOpaque=false, FloatingPetPanel.swift). */
+window.ptb-pet {
+    background: transparent;
+}

@@ -1,0 +1,47 @@
+[package]
+name = "poketoken-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+gui = [
+    "dep:gtk4",
+    "dep:gio",
+    "dep:glib",
+    "dep:gdk-pixbuf",
+    "dep:libadwaita",
+    "dep:cairo-rs",
+    "dep:zbus",
+    "dep:tokio",
+]
+
+[dependencies]
+poketoken-core = { path = "../core" }
+anyhow.workspace = true
+chrono.workspace = true
+# GUI (Phase 2) — gated behind `gui` so `cargo build`/`cargo test`/CI stay green without GTK.
+# Requires on the build host: `sudo apt install libgtk-4-dev libadwaita-1-dev`
+# (GTK 4.14+ / Adwaita 1.5+ family; gtk4-rs 0.9 / glib 0.20 / libadwaita-rs 0.7).
+# `v4_10`: the FileDialog for save export/import.
+gtk4 = { version = "0.9", optional = true, features = ["v4_10"] }
+# Screenshot capture (`--screenshot`): replay a `gtk::Snapshot` node onto a cairo
+# `ImageSurface` and write PNG. Pinned to the cairo-rs the gtk4 crate already links.
+cairo-rs = { version = "0.20", optional = true, features = ["png"] }
+gio = { version = "0.20", optional = true }
+glib = { version = "0.20", optional = true }
+# Animated sprite frames: the `gif` crate decodes the bytes, the app renders each
+# frame as a `gdk_pixbuf::Pixbuf` on a timer (GTK4 has no PixbufAnimation image API).
+# Pinned to the gdk-pixbuf the gtk4 crate already links.
+gdk-pixbuf = { version = "0.20", optional = true }
+# `v1_5`: SwitchRow (1.4) + MessageDialog response appearance (1.2) for the settings rows
+# and the import confirmation.
+libadwaita = { version = "0.7", optional = true, features = ["v1_5"] }
+# SNI (StatusNotifierItem) tray over D-Bus, same process as the GTK4 window: pure Rust
+# (tokio over the $DBUS_SESSION_BUS_ADDRESS unix socket — no libdbus-1, no GTK3).
+# default-features off: zbus 5's default runtime is async-io; we drive it from tokio.
+zbus = { version = "5", optional = true, default-features = false, features = ["tokio"] }
+tokio = { version = "1", optional = true, features = ["rt"] }
