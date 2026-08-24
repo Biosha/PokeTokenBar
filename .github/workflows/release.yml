@@ -1,0 +1,53 @@
+name: Release
+
+# Manual release. The actual steps live in scripts/release.sh so a local run and a CI run
+# do exactly the same thing (test gate → doc checks → bump → build → tag/push → publish).
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Explicit x.y.z (overrides the bump choice)
+        type: string
+        required: false
+      draft:
+        description: Create the release as a draft
+        type: boolean
+        default: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0          # release.sh reads the previous tag for its doc checks
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev dpkg-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Via env, never interpolated into the script: workflow inputs are untrusted text.
+          BUMP: ${{ inputs.version || inputs.bump }}
+          DRAFT: ${{ inputs.draft && '--draft' || '' }}
+          PTB_MAINTAINER: ${{ github.repository_owner }} <noreply@users.noreply.github.com>
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          scripts/release.sh "$BUMP" --yes $DRAFT

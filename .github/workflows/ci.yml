@@ -4,27 +4,50 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # clippy runs with --all-features, which compiles the `gui` feature.
+      - name: Install GTK4 / libadwaita headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
-      - uses: dtolnay/cargo@v1
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: scripts/bump-version.sh --self-test
+
+  package:
+    # Build the .deb on main so every merge has a downloadable, installable artifact.
+    if: github.event_name == 'push'
+    needs: test-and-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev dpkg-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: scripts/make-deb.sh
+      - uses: actions/upload-artifact@v4
         with:
-          command: fmt
-          args: --all -- --check
-      - uses: dtolnay/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --all-features -- -D warnings
-      - uses: dtolnay/cargo@v1
-        with:
-          command: test
-          args: --workspace
+          name: poketoken-deb-${{ github.sha }}
+          path: dist/*.deb
+          retention-days: 14

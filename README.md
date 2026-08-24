@@ -125,10 +125,25 @@ scripts/make-deb.sh                 # release build + assembly + dpkg-deb
 sudo dpkg -i dist/poketoken_0.1.0_amd64.deb
 ```
 
+Releases are cut from GitHub Actions (**Release** workflow → pick patch/minor/major): it bumps
+the version, tags, and attaches the `.deb` and a binary tarball to the release. Every push to
+`main` also uploads a freshly built `.deb` as a CI artifact.
+
 The package installs `/usr/bin/poketoken` (app) and `/usr/bin/poke-token-bar`
 (CLI), the `.desktop` file (named `io.github.poketoken.app` so gnome-shell
 binds the titlebar icon) and the hicolor icon. `PTB_SKIP_BUILD=1` repackages
-without recompiling; `PTB_ICON_URL` overrides the downloaded icon.
+without recompiling; `PTB_ICON_URL` overrides the downloaded icon;
+`PTB_MAINTAINER` sets the `Maintainer:` control field.
+
+Cutting a release locally is one command — same gates as the workflow, run on your
+machine (test gate → doc checks → bump → build → tag/push → GitHub release):
+
+```bash
+scripts/release.sh patch            # or minor / major / an explicit 1.4.0
+scripts/release.sh patch --dry-run  # build everything, push nothing
+scripts/release.sh --check-only     # doc consistency only
+PTB_NOTES_FILE=notes.md scripts/release.sh minor   # custom release notes
+```
 
 ## Data & environment variables
 
@@ -139,6 +154,9 @@ without recompiling; `PTB_ICON_URL` overrides the downloaded icon.
   refreshed in the background) — `PTB_POOL_OFFLINE=1` disables the live refresh
   and serves the bundled fallback.
 - Provider search root: `POKE_TOKEN_BAR_HOME` (defaults to `$HOME`).
+- UI language override: `PTB_LANG=en|ko|ja|es` (wins over the saved setting).
+- App instance: `PTB_APP_ID` (bus name, to run a second instance side by side);
+  `PTB_NO_PET=1` builds the floating pet inert (diagnostics).
 
 ## License
 
