@@ -39,7 +39,6 @@ use crate::sni;
 use crate::style;
 use adw::prelude::*;
 use gtk4 as gtk;
-use gtk::prelude::*;
 use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -213,6 +212,10 @@ pub fn run() -> anyhow::Result<()> {
         print_help();
         return Ok(());
     }
+
+    // Kick the background Pokémon-pool refresh (30-day disk cache, live fetch on
+    // expiry). Local/deterministic until it lands, so the window renders immediately.
+    poketoken_core::pool::init_live();
 
     let app = adw::Application::builder()
         .application_id(
@@ -591,7 +594,10 @@ pub(crate) fn build_window(app: &adw::Application) -> Ui {
     save_card.append(&save_col);
     s_body.append(&save_card);
 
-    let version = gtk::Label::new(Some(&format!("PokeTokenBar v{}", env!("CARGO_PKG_VERSION"))));
+    let version = gtk::Label::new(Some(&format!(
+        "PokeTokenBar v{}",
+        env!("CARGO_PKG_VERSION")
+    )));
     version.set_halign(gtk::Align::Center);
     version.add_css_class("caption");
     version.add_css_class("dim-label");
@@ -692,7 +698,8 @@ fn connect_signals(ui: &Ui) {
     // Gear → the in-window settings page (deactivates the tab pills).
     {
         let cap = ui.clone();
-        ui.gear_btn.connect_clicked(move |_| show_page(&cap, PAGE_SETTINGS));
+        ui.gear_btn
+            .connect_clicked(move |_| show_page(&cap, PAGE_SETTINGS));
     }
     // Quit (header bar; the SNI menu offers the same).
     {
@@ -702,7 +709,8 @@ fn connect_signals(ui: &Ui) {
     // Back (settings page) → Home.
     {
         let cap = ui.clone();
-        ui.back_btn.connect_clicked(move |_| go_tab(&cap, Tab::Home));
+        ui.back_btn
+            .connect_clicked(move |_| go_tab(&cap, Tab::Home));
     }
     // Language / first-weekday pickers (persist, then re-render everything).
     #[allow(deprecated)] // ComboBoxText (see the Ui field note)
@@ -746,7 +754,8 @@ fn connect_signals(ui: &Ui) {
     }
     {
         let cap = ui.clone();
-        let spin = ui.pet_size_row
+        let spin = ui
+            .pet_size_row
             .child()
             .and_then(|c| c.downcast::<gtk::SpinButton>().ok())
             .expect("the pet-size row holds the spin button");
@@ -757,11 +766,13 @@ fn connect_signals(ui: &Ui) {
     // Save-data export / import.
     {
         let cap = ui.clone();
-        ui.export_btn.connect_clicked(move |_| act_export_save(&cap));
+        ui.export_btn
+            .connect_clicked(move |_| act_export_save(&cap));
     }
     {
         let cap = ui.clone();
-        ui.import_btn.connect_clicked(move |_| act_import_save(&cap));
+        ui.import_btn
+            .connect_clicked(move |_| act_import_save(&cap));
     }
     // Collection segments.
     {
@@ -932,27 +943,23 @@ fn start_timers(ui: Ui, tray_queue: sni::TrayCommandQueue) {
 fn spawn_limits(queue: Arc<Mutex<Option<LimitsData>>>, dirty: Arc<AtomicBool>) {
     std::thread::Builder::new()
         .name("poketoken-limits".to_string())
-        .spawn(move || {
-            loop {
-                let claude = poketoken_core::limits::ClaudeLimitsProvider::new()
-                    .fetch()
-                    .map_err(|e| e.to_string());
-                let codex = match poketoken_core::limits::CodexLimitsProvider::new().fetch() {
-                    Ok(status) => Some(status),
-                    Err(e) => {
-                        eprintln!("[poketoken-limits] codex: {e:#}");
-                        None
-                    }
-                };
-                *queue
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(LimitsData {
-                        claude,
-                        codex,
-                    });
-                dirty.store(true, Ordering::SeqCst);
-                std::thread::sleep(Duration::from_secs(LIMITS_REFRESH_SECS));
-            }
+        .spawn(move || loop {
+            let claude = poketoken_core::limits::ClaudeLimitsProvider::new()
+                .fetch()
+                .map_err(|e| e.to_string());
+            let codex = match poketoken_core::limits::CodexLimitsProvider::new().fetch() {
+                Ok(status) => Some(status),
+                Err(e) => {
+                    eprintln!("[poketoken-limits] codex: {e:#}");
+                    None
+                }
+            };
+            *queue
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+                Some(LimitsData { claude, codex });
+            dirty.store(true, Ordering::SeqCst);
+            std::thread::sleep(Duration::from_secs(LIMITS_REFRESH_SECS));
         })
         .ok();
 }
@@ -1046,8 +1053,17 @@ pub(crate) fn refresh(ui: &Ui, write: bool) -> anyhow::Result<()> {
     let lang = resolve_language(&state.language, &cfg.language);
     let l = L::new(lang);
 
-    render(ui, &state, &snap, limits.as_ref(), kind, celebration.as_ref(), &l, cfg.first_weekday_is_monday);
-    maybe_load_sprite(ui, state.species_en(), state.current_is_shiny());
+    render(
+        ui,
+        &state,
+        &snap,
+        limits.as_ref(),
+        kind,
+        celebration.as_ref(),
+        &l,
+        cfg.first_weekday_is_monday,
+    );
+    maybe_load_sprite(ui, &state.species_en(), state.current_is_shiny());
     ui.floating.sync(&state, &cfg, &l, day_total);
     Ok(())
 }
@@ -1094,7 +1110,7 @@ fn render_home(
     celebration: Option<&Celebration>,
     l: &L,
 ) {
-    ui.name.set_text(state.species());
+    ui.name.set_text(&state.species());
     ui.shiny.set_visible(state.current_is_shiny());
     match state.rarity() {
         Some(r) => {
@@ -1107,8 +1123,11 @@ fn render_home(
 
     if state.is_egg() {
         let imminent = state.progress_fraction() >= 0.9;
-        ui.stage
-            .set_text(if imminent { l.egg_imminent() } else { l.egg_incubating() });
+        ui.stage.set_text(if imminent {
+            l.egg_imminent()
+        } else {
+            l.egg_incubating()
+        });
         ui.stage.remove_css_class("warning");
         ui.stage.set_visible(true);
         if imminent {
@@ -1123,10 +1142,8 @@ fn render_home(
             None => ui.egg_guarantee.set_visible(false),
         }
         ui.bar.set_fraction(state.progress_fraction());
-        let remaining =
-            (companion::EGG_HATCH_THRESHOLD - state.egg_progress).max(0);
-        ui.sub
-            .set_text(&l.egg_to_hatch(&compact_tokens(remaining)));
+        let remaining = (companion::EGG_HATCH_THRESHOLD - state.egg_progress).max(0);
+        ui.sub.set_text(&l.egg_to_hatch(&compact_tokens(remaining)));
         if state.egg_progress == 0 && state.used_since_install == 0 {
             ui.status.set_text(l.egg_first_run_hint());
         } else {
@@ -1176,7 +1193,7 @@ fn render_home(
     }
     ui.graduated.set_visible(state.graduated && !state.is_egg());
     if state.graduated && !state.is_egg() {
-        ui.graduated.set_text(&l.graduated(state.species()));
+        ui.graduated.set_text(&l.graduated(&state.species()));
     }
 
     // Stat rows (titles re-localized on every render).
@@ -1188,10 +1205,16 @@ fn render_home(
         .set_text(&stat_value(snap.combined_today.as_ref()));
     let (week_tokens, week_cost) = period_total(snap, false);
     let (month_tokens, month_cost) = period_total(snap, true);
-    ui.val_week
-        .set_text(&format!("{}  ${:.2}", compact_tokens(week_tokens), week_cost));
-    ui.val_month
-        .set_text(&format!("{}  ${:.2}", compact_tokens(month_tokens), month_cost));
+    ui.val_week.set_text(&format!(
+        "{}  ${:.2}",
+        compact_tokens(week_tokens),
+        week_cost
+    ));
+    ui.val_month.set_text(&format!(
+        "{}  ${:.2}",
+        compact_tokens(month_tokens),
+        month_cost
+    ));
     let burn = snap
         .providers
         .iter()
@@ -1264,10 +1287,7 @@ fn render_limits_box(ui: &Ui, limits: Option<&LimitsData>, l: &L) {
                         ui.limits_box.append(&plan_label);
                     }
                     for (name, window) in [
-                        (
-                            l.five_hour_session(),
-                            status.five_hour.clone(),
-                        ),
+                        (l.five_hour_session(), status.five_hour.clone()),
                         (l.weekly(), status.seven_day.clone()),
                     ] {
                         if let Some(w) = &window {
@@ -1294,12 +1314,7 @@ fn render_limits_box(ui: &Ui, limits: Option<&LimitsData>, l: &L) {
                             .and_then(|m| m.display_name.as_deref())
                             .map(|d| format!("{} · {}", l.weekly(), d))
                             .unwrap_or_else(|| l.weekly().to_string());
-                        append_limit_row(
-                            &ui.limits_box,
-                            &entry_name,
-                            e.percent,
-                            e.reset_date(),
-                        );
+                        append_limit_row(&ui.limits_box, &entry_name, e.percent, e.reset_date());
                     }
                 }
                 Err(_) => {
@@ -1343,7 +1358,12 @@ fn unavailable_line(l: &L) -> gtk::Label {
     label
 }
 
-fn append_limit_row(parent: &gtk::Box, name: &str, utilization: Option<f64>, reset: Option<chrono::DateTime<chrono::Utc>>) {
+fn append_limit_row(
+    parent: &gtk::Box,
+    name: &str,
+    utilization: Option<f64>,
+    reset: Option<chrono::DateTime<chrono::Utc>>,
+) {
     let Some(util) = utilization else { return };
     let col = vbox(2);
     let row = hbox(6);
@@ -1425,10 +1445,7 @@ fn render_providers_box(ui: &Ui, snap: &UsageSnapshot, l: &L) {
                 let breakdown = hbox(10);
                 breakdown.append(&token_pair(l.tok_in(), t.input_tokens));
                 breakdown.append(&token_pair(l.tok_out(), t.output_tokens));
-                breakdown.append(&token_pair(
-                    l.tok_cache_write(),
-                    t.cache_creation_tokens,
-                ));
+                breakdown.append(&token_pair(l.tok_cache_write(), t.cache_creation_tokens));
                 breakdown.append(&token_pair(l.tok_cache_read(), t.cache_read_tokens));
                 inner.append(&top);
                 inner.append(&breakdown);
@@ -1465,7 +1482,8 @@ fn token_pair(name: &str, value: i64) -> gtk::Box {
 // ---------------------------------------------------------------------------
 
 fn render_shop(ui: &Ui, state: &companion::CompanionState, l: &L) {
-    ui.wallet.set_text(&compact_tokens(state.available_tokens()));
+    ui.wallet
+        .set_text(&compact_tokens(state.available_tokens()));
     ui.wallet_caption.set_text(l.spendable_tokens());
     ui.shop_hint.set_text(l.shop_hint());
     clear_box(&ui.shop_cards);
@@ -1478,12 +1496,7 @@ fn render_shop(ui: &Ui, state: &companion::CompanionState, l: &L) {
     }
 }
 
-fn shop_item_card(
-    ui: &Ui,
-    state: &companion::CompanionState,
-    kind: ItemKind,
-    l: L,
-) -> gtk::Box {
+fn shop_item_card(ui: &Ui, state: &companion::CompanionState, kind: ItemKind, l: L) -> gtk::Box {
     let card_box = card();
     let inner = vbox(8);
     inner.set_margin_top(10);
@@ -1608,11 +1621,7 @@ enum EggStage {
     ShinyConfirm,
 }
 
-fn egg_card(
-    ui: &Ui,
-    tier: Option<Rarity>,
-    l: L,
-) -> gtk::Box {
+fn egg_card(ui: &Ui, tier: Option<Rarity>, l: L) -> gtk::Box {
     let card_box = card();
     let inner = vbox(8);
     inner.set_margin_top(10);
@@ -1685,7 +1694,8 @@ fn egg_controls(controls: &gtk::Box, ui: &Ui, tier: Option<Rarity>, l: L, stage:
             }
         }
         EggStage::Confirm => {
-            let question = gtk::Label::new(Some(&l.egg_confirm(state.species(), l.egg_name(tier))));
+            let question =
+                gtk::Label::new(Some(&l.egg_confirm(&state.species(), l.egg_name(tier))));
             question.set_hexpand(true);
             question.set_halign(gtk::Align::Start);
             question.set_wrap(true);
@@ -1846,7 +1856,7 @@ fn bag_controls(controls: &gtk::Box, ui: &Ui, kind: ItemKind, l: L, confirming: 
     };
     if can_use {
         if confirming {
-            let question = gtk::Label::new(Some(&l.use_on_current(state.species())));
+            let question = gtk::Label::new(Some(&l.use_on_current(&state.species())));
             question.set_hexpand(true);
             question.set_halign(gtk::Align::Start);
             question.add_css_class("caption");
@@ -1903,10 +1913,10 @@ fn act_use_item(ui: &Ui, kind: ItemKind) {
     let celebration = match kind {
         ItemKind::RareCandy => match state.use_rare_candy() {
             CandyUseResult::Evolved => Some(CompanionEvent::Evolved {
-                to: state.species().to_string(),
+                to: state.species(),
             }),
             CandyUseResult::Graduated => Some(CompanionEvent::Graduated {
-                species: state.species().to_string(),
+                species: state.species(),
             }),
             _ => None,
         },
@@ -1959,7 +1969,10 @@ fn dex_species(state: &companion::CompanionState, lang: Language) -> Vec<DexSpec
         }
     }
     if !state.is_egg() {
-        let reached = state.path.iter().take((state.form_index + 1).max(0) as usize);
+        let reached = state
+            .path
+            .iter()
+            .take((state.form_index + 1).max(0) as usize);
         for &id in reached {
             let a = acc.entry(id).or_insert((false, false));
             a.0 |= state.current_is_shiny();
@@ -2105,10 +2118,10 @@ fn dex_cell(row: &DexSpeciesRow, l: L) -> gtk::Box {
     // Sprite when the disk cache already has it (no network from the grid; a GIF's first
     // frame — the grid is static); a "?" otherwise.
     match pool::species_by_id(row.id) {
-        Some(s) if poketoken_core::sprite::cache_path(s.slug).exists() => {
+        Some(s) if poketoken_core::sprite::cache_path(&s.slug).exists() => {
             let picture = gtk::Image::new();
             if let Ok(first) =
-                gdk_pixbuf::Pixbuf::from_file(poketoken_core::sprite::cache_path(s.slug))
+                gdk_pixbuf::Pixbuf::from_file(poketoken_core::sprite::cache_path(&s.slug))
             {
                 picture.set_from_pixbuf(Some(&first));
             }
@@ -2211,12 +2224,7 @@ fn log_card(row: &LogRow, l: L) -> gtk::Box {
 // Settings (in-window page)
 // ---------------------------------------------------------------------------
 
-fn render_settings(
-    ui: &Ui,
-    state: &companion::CompanionState,
-    l: &L,
-    week_starts_monday: bool,
-) {
+fn render_settings(ui: &Ui, state: &companion::CompanionState, l: &L, week_starts_monday: bool) {
     ui.back_btn.set_label(&format!("‹ {}", l.back()));
     ui.settings_title.set_text(l.settings());
     ui.lang_label.set_text(l.language());
@@ -2227,12 +2235,16 @@ fn render_settings(
         ui.weekday_combo.remove_all();
         ui.weekday_combo.append_text(l.monday());
         ui.weekday_combo.append_text(l.sunday());
-        ui.weekday_combo.set_active(Some(if week_starts_monday { 0 } else { 1 }));
+        ui.weekday_combo
+            .set_active(Some(if week_starts_monday { 0 } else { 1 }));
     }
     // Re-localize the language combo (native labels are language-independent, but keep the
     // active selection in sync with the persisted state).
     let current = Language::from_code(&state.language).unwrap_or(Language::En);
-    let idx = Language::ALL.iter().position(|x| *x == current).unwrap_or(0);
+    let idx = Language::ALL
+        .iter()
+        .position(|x| *x == current)
+        .unwrap_or(0);
     #[allow(deprecated)]
     {
         ui.lang_combo.set_active(Some(idx as u32));
@@ -2242,7 +2254,8 @@ fn render_settings(
     let cfg = Config::load();
     ui.autostart_switch.set_title(l.launch_at_login());
     ui.autostart_switch.set_subtitle(l.launch_at_login_hint());
-    ui.autostart_switch.set_active(poketoken_core::autostart::is_enabled());
+    ui.autostart_switch
+        .set_active(poketoken_core::autostart::is_enabled());
     ui.pet_switch.set_title(l.floating_pet());
     ui.pet_switch.set_subtitle(l.floating_pet_hint());
     ui.pet_switch.set_active(cfg.floating_pet_enabled);
@@ -2346,40 +2359,41 @@ fn act_export_save(ui: &Ui) {
     let state = companion::load();
     let now = chrono::Utc::now();
     let device = device_name();
-    let Ok(bytes) = poketoken_core::save_transfer::encode(
-        &state,
-        env!("CARGO_PKG_VERSION"),
-        &device,
-        &now,
-    ) else {
+    let Ok(bytes) =
+        poketoken_core::save_transfer::encode(&state, env!("CARGO_PKG_VERSION"), &device, &now)
+    else {
         show_message(ui, l.error_heading(), l.import_failed());
         return;
     };
     let dialog = gtk::FileDialog::new();
     dialog.set_title(l.export_save());
-    dialog.set_initial_name(Some(
-        &poketoken_core::save_transfer::suggested_filename(&now),
-    ));
+    dialog.set_initial_name(Some(&poketoken_core::save_transfer::suggested_filename(
+        &now,
+    )));
     let ui_clone = ui.clone();
     let l_clone = l;
-    dialog.save(Some(&ui.win), None::<&gio::Cancellable>, move |result| match result {
-        Ok(file) => match file.path() {
-            // A local path: plain `std::fs::write` (a save is a few KB — no async ceremony).
-            Some(path) => match std::fs::write(&path, &bytes) {
-                Ok(()) => show_message(&ui_clone, l_clone.save_data(), l_clone.save_exported()),
-                Err(e) => {
-                    eprintln!("[poketoken] save export write failed: {e:#}");
+    dialog.save(
+        Some(&ui.win),
+        None::<&gio::Cancellable>,
+        move |result| match result {
+            Ok(file) => match file.path() {
+                // A local path: plain `std::fs::write` (a save is a few KB — no async ceremony).
+                Some(path) => match std::fs::write(&path, &bytes) {
+                    Ok(()) => show_message(&ui_clone, l_clone.save_data(), l_clone.save_exported()),
+                    Err(e) => {
+                        eprintln!("[poketoken] save export write failed: {e:#}");
+                        show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
+                    }
+                },
+                None => {
+                    eprintln!("[poketoken] save export: the picked location has no local path");
                     show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
                 }
             },
-            None => {
-                eprintln!("[poketoken] save export: the picked location has no local path");
-                show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
-            }
+            Err(e) if is_cancelled(&e) => {}
+            Err(e) => eprintln!("[poketoken] save export dialog failed: {e:#}"),
         },
-        Err(e) if is_cancelled(&e) => {}
-        Err(e) => eprintln!("[poketoken] save export dialog failed: {e:#}"),
-    });
+    );
 }
 
 fn act_import_save(ui: &Ui) {
@@ -2388,26 +2402,30 @@ fn act_import_save(ui: &Ui) {
     dialog.set_title(l.import_save());
     let ui_clone = ui.clone();
     let l_clone = l;
-    dialog.open(Some(&ui.win), None::<&gio::Cancellable>, move |result| match result {
-        Ok(file) => match file.path() {
-            Some(path) => match std::fs::read(&path) {
-                Ok(buf) => match poketoken_core::save_transfer::decode(&buf) {
-                    Ok(state) => confirm_import(&ui_clone, state, l_clone),
-                    Err(e) => show_save_error(&ui_clone, l_clone, &e),
+    dialog.open(
+        Some(&ui.win),
+        None::<&gio::Cancellable>,
+        move |result| match result {
+            Ok(file) => match file.path() {
+                Some(path) => match std::fs::read(&path) {
+                    Ok(buf) => match poketoken_core::save_transfer::decode(&buf) {
+                        Ok(state) => confirm_import(&ui_clone, state, l_clone),
+                        Err(e) => show_save_error(&ui_clone, l_clone, &e),
+                    },
+                    Err(e) => {
+                        eprintln!("[poketoken] import read failed: {e:#}");
+                        show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
+                    }
                 },
-                Err(e) => {
-                    eprintln!("[poketoken] import read failed: {e:#}");
+                None => {
+                    eprintln!("[poketoken] import: the picked file has no local path");
                     show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
                 }
             },
-            None => {
-                eprintln!("[poketoken] import: the picked file has no local path");
-                show_message(&ui_clone, l_clone.error_heading(), l_clone.import_failed());
-            }
+            Err(e) if is_cancelled(&e) => {}
+            Err(e) => eprintln!("[poketoken] import dialog failed: {e:#}"),
         },
-        Err(e) if is_cancelled(&e) => {}
-        Err(e) => eprintln!("[poketoken] import dialog failed: {e:#}"),
-    });
+    );
 }
 
 /// Minimal `g-io-error-quark` domain: this environment's stripped glib/gio does not export
@@ -2475,11 +2493,7 @@ fn confirm_import(ui: &Ui, imported: poketoken_core::companion::CompanionState, 
 /// Backup → rebase against this device → persist → refresh. Aborts (keeping the current
 /// state) when the backup cannot be written: the confirmation dialog promised a
 /// recovery path, so without it the import must not proceed.
-fn do_import(
-    ui: &Ui,
-    imported: poketoken_core::companion::CompanionState,
-    l: L,
-) {
+fn do_import(ui: &Ui, imported: poketoken_core::companion::CompanionState, l: L) {
     let now = chrono::Utc::now();
     let current = companion::load();
     if let Err(e) = poketoken_core::save_transfer::backup_current(&now) {
@@ -2499,11 +2513,7 @@ fn do_import(
     show_message(ui, l.save_data(), l.save_imported());
 }
 
-fn show_save_error(
-    ui: &Ui,
-    l: L,
-    err: &poketoken_core::save_transfer::SaveTransferError,
-) {
+fn show_save_error(ui: &Ui, l: L, err: &poketoken_core::save_transfer::SaveTransferError) {
     let msg = match err {
         poketoken_core::save_transfer::SaveTransferError::NotASaveFile => {
             l.import_not_save().to_string()
@@ -2554,7 +2564,9 @@ fn card() -> gtk::Box {
 /// `set_weight`; the macOS port uses semibold for name/heading rows).
 fn semibold(label: &gtk::Label) {
     let attrs = gtk::pango::AttrList::new();
-    attrs.insert(gtk::pango::AttrInt::new_weight(gtk::pango::Weight::Semibold));
+    attrs.insert(gtk::pango::AttrInt::new_weight(
+        gtk::pango::Weight::Semibold,
+    ));
     label.set_attributes(Some(&attrs));
 }
 
@@ -2673,7 +2685,11 @@ pub(crate) fn spawn_sprite_load(
                 None
             }
         };
-        *queue.lock().unwrap() = Some(SpriteResult { name, shiny, frames });
+        *queue.lock().unwrap() = Some(SpriteResult {
+            name,
+            shiny,
+            frames,
+        });
     });
 }
 

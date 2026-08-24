@@ -94,10 +94,7 @@ fn kiro_entries(
                 "kiro",
                 &key,
                 &conn,
-                &[
-                    (TABLE_V2, SQL_V2_INC),
-                    (TABLE_V1, SQL_V1_INC),
-                ],
+                &[(TABLE_V2, SQL_V2_INC), (TABLE_V1, SQL_V1_INC)],
                 0,
                 |table, row| match table {
                     TABLE_V2 => match sqld::col_text(row, 1) {
@@ -1062,7 +1059,10 @@ mod tests {
             &"a".repeat(200),
             200,
         )];
-        seed_v2(&db, &[("conv-1".into(), conv("conv-1", one_turn).to_string())]);
+        seed_v2(
+            &db,
+            &[("conv-1".into(), conv("conv-1", one_turn).to_string())],
+        );
         let cache = UsageCache::open(&home.join("usage-cache.sqlite")).unwrap();
         let since = since_default();
 
@@ -1080,7 +1080,13 @@ mod tests {
                 &"a".repeat(200),
                 200,
             ),
-            turn(1_780_000_100_000, Some("claude-sonnet-4.5"), &"u".repeat(40), "", 40),
+            turn(
+                1_780_000_100_000,
+                Some("claude-sonnet-4.5"),
+                &"u".repeat(40),
+                "",
+                40,
+            ),
         ];
         let conn = Connection::open(&db).unwrap();
         conn.execute(
@@ -1093,7 +1099,10 @@ mod tests {
         let next = kiro_entries(&ctx, since, Some(&cache));
         let plain = kiro_entries(&ctx, since, None);
         assert_eq!(next.len(), 2, "the in-place appended turn must be re-read");
-        assert_eq!(next, plain, "re-read after an in-place update must equal a full read");
+        assert_eq!(
+            next, plain,
+            "re-read after an in-place update must equal a full read"
+        );
         cleanup(&home);
     }
 

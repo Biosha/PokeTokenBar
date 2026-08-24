@@ -33,7 +33,11 @@ impl UsageProvider for GeminiProvider {
 /// The read path, with the cache injected so tests can pin it to a temp file. A session file's
 /// parse is not split-friendly (its fallback timestamps and positional ids span the whole
 /// file), so each source is size-marked and re-read whole when its size changes.
-fn gemini_entries(ctx: &ProviderCtx, since: DateTime<Utc>, cache: Option<&usage_cache::UsageCache>) -> Vec<Entry> {
+fn gemini_entries(
+    ctx: &ProviderCtx,
+    since: DateTime<Utc>,
+    cache: Option<&usage_cache::UsageCache>,
+) -> Vec<Entry> {
     let full = cache
         .map(|c| c.full_rescan_due("gemini_cli", &ctx.tz))
         .unwrap_or(true);
@@ -213,7 +217,10 @@ mod tests {
 
         // Appended: re-read whole, still identical to a fresh parse.
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(&path).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
         f.write_all(format!("{}\n", rec("m2")).as_bytes()).unwrap();
         let next = gemini_entries(&ctx, since, Some(&cache));
         assert_eq!(next.len(), 2);

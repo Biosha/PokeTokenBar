@@ -105,7 +105,10 @@ pub struct DbState {
 impl DbState {
     pub fn new(sig: (DateTime<Utc>, u64), tables: HashMap<String, i64>) -> Self {
         Self {
-            mtime_ns: sig.0.timestamp_nanos_opt().unwrap_or(sig.0.timestamp_millis() * 1_000_000),
+            mtime_ns: sig
+                .0
+                .timestamp_nanos_opt()
+                .unwrap_or(sig.0.timestamp_millis() * 1_000_000),
             size: sig.1,
             tables,
         }
@@ -113,7 +116,10 @@ impl DbState {
 
     /// True when the on-disk file is byte-for-byte the one this state was captured from.
     pub fn matches(&self, sig: (DateTime<Utc>, u64)) -> bool {
-        let sig_ns = sig.0.timestamp_nanos_opt().unwrap_or(sig.0.timestamp_millis() * 1_000_000);
+        let sig_ns = sig
+            .0
+            .timestamp_nanos_opt()
+            .unwrap_or(sig.0.timestamp_millis() * 1_000_000);
         self.mtime_ns == sig_ns && self.size == sig.1
     }
 
@@ -165,7 +171,10 @@ pub fn source_key(path: &Path) -> String {
 /// Offset just past the final `\n` of `data` (a line boundary = a UTF-8 char boundary),
 /// `0` when `data` holds no complete line.
 pub fn complete_line_end(data: &[u8]) -> usize {
-    data.iter().rposition(|&b| b == b'\n').map(|p| p + 1).unwrap_or(0)
+    data.iter()
+        .rposition(|&b| b == b'\n')
+        .map(|p| p + 1)
+        .unwrap_or(0)
 }
 
 impl UsageCache {
@@ -211,11 +220,9 @@ impl UsageCache {
 
     pub fn meta_get(&self, key: &str) -> Option<String> {
         let conn = self.lock()?;
-        conn.query_row(
-            "SELECT value FROM meta WHERE key = ?1",
-            params![key],
-            |r| r.get::<_, String>(0),
-        )
+        conn.query_row("SELECT value FROM meta WHERE key = ?1", params![key], |r| {
+            r.get::<_, String>(0)
+        })
         .optional()
         .ok()
         .flatten()
@@ -256,9 +263,8 @@ impl UsageCache {
         let conn = self
             .lock()
             .ok_or_else(|| anyhow::anyhow!("cache connection poisoned"))?;
-        let mut stmt = conn.prepare(
-            "SELECT source, marker, payload FROM sources WHERE provider = ?1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT source, marker, payload FROM sources WHERE provider = ?1")?;
         let rows = stmt
             .query_map(params![provider], |r| {
                 Ok((
@@ -292,7 +298,13 @@ impl UsageCache {
         Ok(row)
     }
 
-    pub fn upsert_source(&self, provider: &str, source: &str, marker: i64, payload: Option<String>) {
+    pub fn upsert_source(
+        &self,
+        provider: &str,
+        source: &str,
+        marker: i64,
+        payload: Option<String>,
+    ) {
         let Some(conn) = self.lock() else {
             return;
         };
@@ -320,8 +332,12 @@ impl UsageCache {
         } else {
             let n = keep.len();
             let placeholders: Vec<String> = (0..n).map(|i| format!("?{}", i + 2)).collect();
-            let args =
-                |table: &str| -> String { format!("DELETE FROM {table} WHERE provider = ?1 AND source NOT IN ({})", placeholders.join(", ")) };
+            let args = |table: &str| -> String {
+                format!(
+                    "DELETE FROM {table} WHERE provider = ?1 AND source NOT IN ({})",
+                    placeholders.join(", ")
+                )
+            };
             for table in ["sources", "entries"] {
                 let _ = tx.execute(
                     &args(table),
@@ -362,10 +378,19 @@ impl UsageCache {
             .collect::<rusqlite::Result<Vec<_>>>()?;
         // A corrupted row fails the whole load, which makes the provider re-read its source —
         // the cache self-heals instead of panicking the snapshot.
-        raw
-            .into_iter()
+        raw.into_iter()
             .map(
-                |(id, date_ns, local_day, model, input, output, cache_write, cache_read, explicit_cost)| {
+                |(
+                    id,
+                    date_ns,
+                    local_day,
+                    model,
+                    input,
+                    output,
+                    cache_write,
+                    cache_read,
+                    explicit_cost,
+                )| {
                     let date = ns_to_utc(date_ns)
                         .ok_or_else(|| anyhow::anyhow!("bad cached date_ns {date_ns}"))?;
                     Ok(Entry {
@@ -457,15 +482,10 @@ impl UsageCache {
         if full_day {
             return DbPlan::full();
         }
-        let Some(state) = self
-            .source(provider, source)
-            .ok()
-            .flatten()
-            .and_then(|s| {
-                s.payload
-                    .and_then(|p| serde_json::from_str::<DbState>(&p).ok())
-            })
-        else {
+        let Some(state) = self.source(provider, source).ok().flatten().and_then(|s| {
+            s.payload
+                .and_then(|p| serde_json::from_str::<DbState>(&p).ok())
+        }) else {
             return DbPlan::full();
         };
         if state.matches(sig) {
@@ -715,7 +735,11 @@ mod tests {
         let c = open(&dir);
         let base = DateTime::<Utc>::from_timestamp(1_787_000_000, 0).unwrap();
         let entries = vec![
-            entry("a", base.timestamp_nanos_opt().unwrap() + 123_456_789, Some(0.5)),
+            entry(
+                "a",
+                base.timestamp_nanos_opt().unwrap() + 123_456_789,
+                Some(0.5),
+            ),
             entry("b", base.timestamp_nanos_opt().unwrap(), None),
         ];
         c.store_entries("p", "s", &entries);
@@ -768,7 +792,10 @@ mod tests {
         c.store_entries(
             "p",
             "s",
-            &[entry("old", old.timestamp_nanos_opt().unwrap(), None), entry("new", day.timestamp_nanos_opt().unwrap(), None)],
+            &[
+                entry("old", old.timestamp_nanos_opt().unwrap(), None),
+                entry("new", day.timestamp_nanos_opt().unwrap(), None),
+            ],
         );
         c.prune_entries_before("p", day - chrono::Duration::hours(24));
         let back = c.load_entries("p", "s").unwrap();
@@ -790,12 +817,27 @@ mod tests {
         c.upsert_source("p", "db", 0, Some(serde_json::to_string(&state).unwrap()));
         assert!(c.db_plan("p", "db", sig, false, true).incremental);
         let other = (sig.0 + chrono::Duration::seconds(1), sig.1);
-        assert!(!c.db_plan("p", "db", other, false, true).incremental, "in-place: mtime change forces full");
+        assert!(
+            !c.db_plan("p", "db", other, false, true).incremental,
+            "in-place: mtime change forces full"
+        );
         let smaller = (sig.0, sig.1 - 1);
-        assert!(!c.db_plan("p", "db", smaller, false, true).incremental, "in-place: size change forces full");
-        assert!(c.db_plan("p", "db", other, false, false).incremental, "append-only: mtime change → rowid watermark");
-        assert!(c.db_plan("p", "db", smaller, false, false).incremental, "append-only: size change → rowid watermark");
-        assert!(!c.db_plan("p", "db", sig, true, false).incremental, "full day forces full");
+        assert!(
+            !c.db_plan("p", "db", smaller, false, true).incremental,
+            "in-place: size change forces full"
+        );
+        assert!(
+            c.db_plan("p", "db", other, false, false).incremental,
+            "append-only: mtime change → rowid watermark"
+        );
+        assert!(
+            c.db_plan("p", "db", smaller, false, false).incremental,
+            "append-only: size change → rowid watermark"
+        );
+        assert!(
+            !c.db_plan("p", "db", sig, true, false).incremental,
+            "full day forces full"
+        );
     }
 
     #[test]

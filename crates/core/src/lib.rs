@@ -15,6 +15,7 @@ pub mod iso8601;
 pub mod limits;
 pub mod nature;
 pub mod paths;
+mod pokeapi;
 pub mod pool;
 pub mod pool_gen;
 pub mod provider;

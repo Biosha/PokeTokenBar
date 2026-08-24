@@ -248,8 +248,7 @@ mod tests {
     #[test]
     fn roundtrip_preserves_state() {
         let state = state_with_dex();
-        let bytes =
-            encode(&state, "0.1.0", "test-host", &Utc::now()).expect("encode");
+        let bytes = encode(&state, "0.1.0", "test-host", &Utc::now()).expect("encode");
         let decoded = decode(&bytes).expect("decode");
         assert_eq!(decoded.dex, state.dex);
         assert_eq!(decoded.used_since_install, state.used_since_install);
@@ -279,10 +278,9 @@ mod tests {
         let state = state_with_dex();
         let bytes = encode(&state, "0.1.0", "test-host", &Utc::now()).unwrap();
         // Bump the schema the way a future build would.
-        let newer = std::str::from_utf8(&bytes).unwrap().replace(
-                r#""schema": 1"#,
-                r#""schema": 99"#,
-            );
+        let newer = std::str::from_utf8(&bytes)
+            .unwrap()
+            .replace(r#""schema": 1"#, r#""schema": 99"#);
         assert!(matches!(
             decode(newer.as_bytes()),
             Err(SaveTransferError::NewerSchema {
@@ -294,7 +292,10 @@ mod tests {
 
     #[test]
     fn rejects_oversized_files_before_parsing() {
-        assert!(size_error(MAX_FILE_BYTES).is_none(), "at the cap is allowed");
+        assert!(
+            size_error(MAX_FILE_BYTES).is_none(),
+            "at the cap is allowed"
+        );
         assert!(matches!(
             size_error(MAX_FILE_BYTES + 1),
             Some(SaveTransferError::FileTooLarge { bytes, limit })
@@ -330,7 +331,9 @@ mod tests {
     #[test]
     fn rebase_keeps_device_language_and_merges_ledger() {
         let mut imported = state_with_dex();
-        imported.candy_grant_tier.insert("codex-week".to_string(), 3);
+        imported
+            .candy_grant_tier
+            .insert("codex-week".to_string(), 3);
         imported.last_day = "2020-01-01".to_string();
         imported.day_applied = 42;
 
@@ -384,9 +387,7 @@ mod tests {
             fs::write(dir.join(&f), "{}").unwrap();
         }
         prune_backups(&dir).unwrap();
-        let remaining = fs::read_dir(&dir)
-            .unwrap()
-            .count();
+        let remaining = fs::read_dir(&dir).unwrap().count();
         assert_eq!(remaining, BACKUPS_TO_KEEP, "oldest backups pruned");
         let _ = fs::remove_dir_all(&dir);
     }
@@ -396,6 +397,9 @@ mod tests {
         let now = DateTime::parse_from_rfc3339("2026-08-22T10:00:00Z")
             .unwrap()
             .with_timezone(&Utc);
-        assert_eq!(suggested_filename(&now), "PokeTokenBar-Save-2026-08-22.json");
+        assert_eq!(
+            suggested_filename(&now),
+            "PokeTokenBar-Save-2026-08-22.json"
+        );
     }
 }

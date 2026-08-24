@@ -294,7 +294,10 @@ mod tests {
         let plain = hermes_entries(&ctx, since, None);
         assert_eq!(next.len(), 1);
         assert_eq!(next[0].input, 90);
-        assert_eq!(next, plain, "re-read after an in-place edit must equal a full read");
+        assert_eq!(
+            next, plain,
+            "re-read after an in-place edit must equal a full read"
+        );
         std::fs::remove_dir_all(&home).ok();
     }
 }

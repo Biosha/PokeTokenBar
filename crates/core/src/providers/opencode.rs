@@ -115,18 +115,19 @@ fn opencode_entries(
             let path = f.path;
             let key = usage_cache::source_key(&path);
             let file_entries = match cache {
-                Some(c) => {
-                    c.read_file_source_whole("opencode", &path, &key, full, || {
-                        parse_legacy_file(&path, tz)
-                    })
-                }
+                Some(c) => c.read_file_source_whole("opencode", &path, &key, full, || {
+                    parse_legacy_file(&path, tz)
+                }),
                 None => parse_legacy_file(&path, tz),
             };
             keep.push(key);
             entries.extend(file_entries);
         }
     }
-    let entries = entries.into_iter().filter(|e| e.date >= since).collect::<Vec<_>>();
+    let entries = entries
+        .into_iter()
+        .filter(|e| e.date >= since)
+        .collect::<Vec<_>>();
     if let Some(c) = cache {
         c.prune_sources("opencode", &keep);
         c.prune_entries_before("opencode", since);
@@ -294,8 +295,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         make_db(&dir);
         let ctx = ProviderCtx::for_test(dir.clone(), FixedOffset::east_opt(0).unwrap());
-        let entries =
-            opencode_entries(&ctx, DateTime::<Utc>::from_timestamp(0, 0).unwrap(), None);
+        let entries = opencode_entries(&ctx, DateTime::<Utc>::from_timestamp(0, 0).unwrap(), None);
         std::fs::remove_dir_all(&dir).ok();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].input, 100);
@@ -352,7 +352,10 @@ mod tests {
         drop(conn);
         let entries = opencode_entries(&ctx, floor, Some(&cache));
         let m1 = entries.iter().find(|e| e.id == "opencode|m1").unwrap();
-        assert_eq!(m1.input, 400, "an in-place update must not be hidden by the cache");
+        assert_eq!(
+            m1.input, 400,
+            "an in-place update must not be hidden by the cache"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

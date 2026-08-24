@@ -27,7 +27,9 @@ pub fn cache_dir() -> PathBuf {
 /// `{slug}-shiny.gif` so a shiny re-roll of the same species does not shadow the
 /// regular one (and vice versa).
 pub fn cache_path(slug: &str) -> PathBuf {
-    cache_dir().join("pokeapi-sprites").join(format!("{slug}.gif"))
+    cache_dir()
+        .join("pokeapi-sprites")
+        .join(format!("{slug}.gif"))
 }
 
 /// One decoded sprite frame: a full canvas in RGBA8 plus its display delay.
@@ -85,22 +87,21 @@ pub fn fetch_gif(english_name: &str, shiny: bool) -> anyhow::Result<Option<Vec<u
             .await
             .map_err(|e| anyhow::anyhow!("fetch pokemon `{slug}`: {e}"))?;
         let animated = &pokemon.sprites.versions.generation_v.black_white.animated;
-        Ok((
-            animated.front_default.clone(),
-            animated.front_shiny.clone(),
-        ))
+        Ok((animated.front_default.clone(), animated.front_shiny.clone()))
     });
     let (front_default, front_shiny) = resolved?;
 
     // Shiny requested but absent → serve (and cache) the regular sprite instead.
-    if shiny && front_shiny.as_deref().map(str::trim).filter(|u| !u.is_empty()).is_none() {
+    if shiny
+        && front_shiny
+            .as_deref()
+            .map(str::trim)
+            .filter(|u| !u.is_empty())
+            .is_none()
+    {
         return fetch_gif(english_name, false);
     }
-    let url = match if shiny {
-        front_shiny
-    } else {
-        front_default
-    } {
+    let url = match if shiny { front_shiny } else { front_default } {
         Some(u) if !u.trim().is_empty() => u.trim().to_string(),
         _ => anyhow::bail!("no animated sprite URL for {slug}"),
     };
@@ -179,7 +180,9 @@ pub fn decode_gif_frames(bytes: &[u8]) -> anyhow::Result<Vec<SpriteFrame>> {
         if let Some(p) = &pending {
             match p.method {
                 gif::DisposalMethod::Background => clear_rect(&mut canvas, w, h, p.rect),
-                gif::DisposalMethod::Previous => copy_rect(&mut canvas, &p.state_before, w, h, p.rect),
+                gif::DisposalMethod::Previous => {
+                    copy_rect(&mut canvas, &p.state_before, w, h, p.rect)
+                }
                 gif::DisposalMethod::Any | gif::DisposalMethod::Keep => {}
             }
         }
@@ -266,10 +269,7 @@ fn copy_rect(dst: &mut [u8], src: &[u8], w: usize, h: usize, rect: Rect) {
 /// cache path from a species name must slug it first — a case-sensitive filesystem
 /// (Linux) will not match `Charmander.png` against `charmander.png`.
 pub fn slug(english_name: &str) -> String {
-    english_name
-        .trim()
-        .to_lowercase()
-        .replace(' ', "-")
+    english_name.trim().to_lowercase().replace(' ', "-")
 }
 
 #[cfg(test)]
@@ -309,7 +309,9 @@ mod tests {
         let path = cache_path("pikachu");
         let payload = b"GIF89a fake-bytes";
         assert!(fs::write(&path, payload).is_ok());
-        let got = fetch_gif("Pikachu", false).expect("cache hit").expect("bytes");
+        let got = fetch_gif("Pikachu", false)
+            .expect("cache hit")
+            .expect("bytes");
         assert_eq!(got, payload);
         let _ = fs::remove_file(&path);
     }
@@ -333,11 +335,7 @@ mod tests {
 
     #[test]
     fn decode_roundtrip_yields_frames_and_delays() {
-        let gif_bytes = encode_gif(
-            2,
-            2,
-            &[((255, 0, 0, 255), 5), ((0, 255, 0, 255), 15)],
-        );
+        let gif_bytes = encode_gif(2, 2, &[((255, 0, 0, 255), 5), ((0, 255, 0, 255), 15)]);
         let frames = decode_gif_frames(&gif_bytes).expect("decode");
         assert_eq!(frames.len(), 2);
         assert_eq!(frames[0].width, 2);
@@ -408,9 +406,27 @@ mod tests {
     #[test]
     fn disposal_background_clears_stale_pixels() {
         let frames = vec![
-            partial_frame((3, 1, 0, 0), vec![0; 3], palette4(255, 0, 0), None, gif::DisposalMethod::Keep),
-            partial_frame((1, 1, 0, 0), vec![0], palette4(0, 255, 0), None, gif::DisposalMethod::Background),
-            partial_frame((1, 1, 2, 0), vec![0], palette4(0, 0, 255), None, gif::DisposalMethod::Keep),
+            partial_frame(
+                (3, 1, 0, 0),
+                vec![0; 3],
+                palette4(255, 0, 0),
+                None,
+                gif::DisposalMethod::Keep,
+            ),
+            partial_frame(
+                (1, 1, 0, 0),
+                vec![0],
+                palette4(0, 255, 0),
+                None,
+                gif::DisposalMethod::Background,
+            ),
+            partial_frame(
+                (1, 1, 2, 0),
+                vec![0],
+                palette4(0, 0, 255),
+                None,
+                gif::DisposalMethod::Keep,
+            ),
         ];
         let decoded = decode_gif_frames(&encode_partial(3, 1, frames)).expect("decode");
         // While frame 1 is on screen, frame 0's red is still there (its disposal is Keep):
@@ -431,9 +447,21 @@ mod tests {
     #[test]
     fn transparent_frame_preserves_canvas() {
         let frames = vec![
-            partial_frame((2, 1, 0, 0), vec![0, 0], palette4(255, 0, 0), None, gif::DisposalMethod::Keep),
+            partial_frame(
+                (2, 1, 0, 0),
+                vec![0, 0],
+                palette4(255, 0, 0),
+                None,
+                gif::DisposalMethod::Keep,
+            ),
             // all pixels use the transparent slot (index 1, color unused)
-            partial_frame((2, 1, 0, 0), vec![1, 1], palette4(255, 0, 0), Some(1), gif::DisposalMethod::Background),
+            partial_frame(
+                (2, 1, 0, 0),
+                vec![1, 1],
+                palette4(255, 0, 0),
+                Some(1),
+                gif::DisposalMethod::Background,
+            ),
         ];
         let decoded = decode_gif_frames(&encode_partial(2, 1, frames)).expect("decode");
         assert_eq!(pixel(&decoded[1].rgba, 0, 0, 2), (255, 0, 0, 255));
@@ -445,9 +473,27 @@ mod tests {
     #[test]
     fn disposal_previous_restores_prior_state() {
         let frames = vec![
-            partial_frame((2, 1, 0, 0), vec![0, 0], palette4(255, 0, 0), None, gif::DisposalMethod::Keep),
-            partial_frame((1, 1, 0, 0), vec![0], palette4(0, 255, 0), None, gif::DisposalMethod::Previous),
-            partial_frame((1, 1, 0, 0), vec![0], palette4(255, 255, 0), None, gif::DisposalMethod::Keep),
+            partial_frame(
+                (2, 1, 0, 0),
+                vec![0, 0],
+                palette4(255, 0, 0),
+                None,
+                gif::DisposalMethod::Keep,
+            ),
+            partial_frame(
+                (1, 1, 0, 0),
+                vec![0],
+                palette4(0, 255, 0),
+                None,
+                gif::DisposalMethod::Previous,
+            ),
+            partial_frame(
+                (1, 1, 0, 0),
+                vec![0],
+                palette4(255, 255, 0),
+                None,
+                gif::DisposalMethod::Keep,
+            ),
         ];
         let decoded = decode_gif_frames(&encode_partial(2, 1, frames)).expect("decode");
         let f3 = &decoded[2].rgba;
@@ -476,7 +522,11 @@ mod tests {
             let out_path = path.with_extension(format!("pam.{i:03}"));
             fs::write(&out_path, out).expect("write pam");
         }
-        println!("wrote {} frames as PAM next to {}", frames.len(), path.display());
+        println!(
+            "wrote {} frames as PAM next to {}",
+            frames.len(),
+            path.display()
+        );
     }
 
     /// End-to-end through `rustemon`: the animated sprite resolves and downloads as GIF.

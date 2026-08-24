@@ -7,8 +7,8 @@
 
 use chrono::{DateTime, FixedOffset, Utc, Weekday};
 use poketoken_core::provider::ProviderCtx;
-use poketoken_core::usage_store::build_snapshot;
 use poketoken_core::types::UsageSnapshot;
+use poketoken_core::usage_store::build_snapshot;
 use rusqlite::Connection;
 use serde_json::json;
 use std::path::{Path, PathBuf};
@@ -28,21 +28,21 @@ fn utc() -> FixedOffset {
 }
 
 fn now() -> DateTime<Utc> {
-    DateTime::parse_from_rfc3339(NOW).unwrap().with_timezone(&Utc)
+    DateTime::parse_from_rfc3339(NOW)
+        .unwrap()
+        .with_timezone(&Utc)
 }
 
 fn home() -> PathBuf {
     let n = SEQ.fetch_add(1, Ordering::SeqCst);
-    let dir =
-        std::env::temp_dir().join(format!("ptb-parity-{}-{}", process::id(), n));
+    let dir = std::env::temp_dir().join(format!("ptb-parity-{}-{}", process::id(), n));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
 fn cache_dir() -> PathBuf {
     let n = SEQ.fetch_add(1, Ordering::SeqCst);
-    let dir =
-        std::env::temp_dir().join(format!("ptb-parity-cache-{}-{}", process::id(), n));
+    let dir = std::env::temp_dir().join(format!("ptb-parity-cache-{}-{}", process::id(), n));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
@@ -164,9 +164,9 @@ fn seed_cursor(h: &Path) -> PathBuf {
             "bubbleId:tab:1",
             json!({"tokenCount":{"inputTokens":10,"outputTokens":5},
                    "createdAt":"2026-08-20T10:00:00.000Z","modelType":"gpt-4o"})
-                .to_string()
-                .as_bytes()
-                .to_vec()
+            .to_string()
+            .as_bytes()
+            .to_vec()
         ],
     )
     .unwrap();
@@ -283,7 +283,11 @@ fn seed_antigravity(h: &Path) -> PathBuf {
     let blob = ag_record("r1", T0 as u64, 100, 10);
     let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
     conn.execute(
-        format!("INSERT INTO gen_metadata VALUES (0, X'{hex}', {});", blob.len()).as_str(),
+        format!(
+            "INSERT INTO gen_metadata VALUES (0, X'{hex}', {});",
+            blob.len()
+        )
+        .as_str(),
         [],
     )
     .unwrap();
@@ -294,9 +298,11 @@ fn seed_antigravity(h: &Path) -> PathBuf {
 fn append_antigravity(db: &Path, response_id: &str, created_at: u64, input: u64, output: u64) {
     let conn = Connection::open(db).unwrap();
     let idx: i64 = conn
-        .query_row("SELECT COALESCE(MAX(idx), -1) + 1 FROM gen_metadata", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT COALESCE(MAX(idx), -1) + 1 FROM gen_metadata",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let blob = ag_record(response_id, created_at, input, output);
     let hex: String = blob.iter().map(|b| format!("{b:02x}")).collect();
@@ -359,13 +365,20 @@ fn cache_on_matches_cache_off() {
         "opencode",
         "antigravity",
     ] {
-        assert!(ids.contains(&want), "missing provider {want:?}; saw {ids:?}");
+        assert!(
+            ids.contains(&want),
+            "missing provider {want:?}; saw {ids:?}"
+        );
     }
 
     // Cold cache: identical to a cache-off read.
     assert_eq!(snap(Some(&cache)), base, "cold cache must equal cache-off");
     // Warm, unchanged: still identical.
-    assert_eq!(snap(Some(&cache)), base, "warm unchanged cache must equal cache-off");
+    assert_eq!(
+        snap(Some(&cache)),
+        base,
+        "warm unchanged cache must equal cache-off"
+    );
 
     // Grow every provider's data by one record.
     let rec = json!({
@@ -422,9 +435,9 @@ fn cache_on_matches_cache_off() {
                 "bubbleId:tab:2",
                 json!({"tokenCount":{"inputTokens":60,"outputTokens":6},
                        "createdAt":"2026-08-21T10:00:00.000Z","modelType":"gpt-4o"})
-                    .to_string()
-                    .as_bytes()
-                    .to_vec()
+                .to_string()
+                .as_bytes()
+                .to_vec()
             ],
         )
         .unwrap();

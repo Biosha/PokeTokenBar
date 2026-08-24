@@ -34,7 +34,11 @@ impl UsageProvider for ClaudeProvider {
 }
 
 /// The read path, with the cache injected so tests can pin it to a temp file.
-fn claude_entries(ctx: &ProviderCtx, since: DateTime<Utc>, cache: Option<&usage_cache::UsageCache>) -> Vec<Entry> {
+fn claude_entries(
+    ctx: &ProviderCtx,
+    since: DateTime<Utc>,
+    cache: Option<&usage_cache::UsageCache>,
+) -> Vec<Entry> {
     let full = cache
         .map(|c| c.full_rescan_due("claude_code", &ctx.tz))
         .unwrap_or(true);
@@ -255,7 +259,10 @@ mod tests {
         let path = projects.join("s.jsonl");
         let rec = line("m2", "r2", ts, "claude-sonnet-4-6", input, output);
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(&path).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .unwrap();
         f.write_all(format!("{rec}\n").as_bytes()).unwrap();
     }
 
@@ -275,9 +282,23 @@ mod tests {
         assert_eq!(ids(&second), vec!["m1|r1".to_string(), "m2|r2".to_string()]);
 
         let expected = dedup_keep_max(parse_claude_file(&projects.join("s.jsonl"), ctx.tz));
-        assert_eq!(ids(&second), ids(&expected), "incremental must equal a full parse");
-        let marker = cache.source("claude_code", &usage_cache::source_key(&projects.join("s.jsonl"))).unwrap().unwrap().marker;
-        assert_eq!(marker as u64, std::fs::metadata(projects.join("s.jsonl")).unwrap().len());
+        assert_eq!(
+            ids(&second),
+            ids(&expected),
+            "incremental must equal a full parse"
+        );
+        let marker = cache
+            .source(
+                "claude_code",
+                &usage_cache::source_key(&projects.join("s.jsonl")),
+            )
+            .unwrap()
+            .unwrap()
+            .marker;
+        assert_eq!(
+            marker as u64,
+            std::fs::metadata(projects.join("s.jsonl")).unwrap().len()
+        );
 
         // Unchanged file: same result, no reparse needed.
         let third = claude_entries(&ctx, since, Some(&cache));
@@ -293,10 +314,21 @@ mod tests {
         assert_eq!(claude_entries(&ctx, since, Some(&cache)).len(), 2);
 
         // Rotation: the file is replaced by a shorter one.
-        let rec = line("m3", "r3", "2026-08-21T09:00:00Z", "claude-sonnet-4-6", 5, 5);
+        let rec = line(
+            "m3",
+            "r3",
+            "2026-08-21T09:00:00Z",
+            "claude-sonnet-4-6",
+            5,
+            5,
+        );
         std::fs::write(projects.join("s.jsonl"), format!("{rec}\n")).unwrap();
         let reread = claude_entries(&ctx, since, Some(&cache));
-        assert_eq!(ids(&reread), vec!["m3|r3".to_string()], "a shrunken file must be re-read whole");
+        assert_eq!(
+            ids(&reread),
+            vec!["m3|r3".to_string()],
+            "a shrunken file must be re-read whole"
+        );
         std::fs::remove_dir_all(&home).ok();
     }
 
@@ -309,7 +341,10 @@ mod tests {
         // A marker line that is not valid JSON: the tail parse must reject it and the file
         // must be re-read whole (which skips the bad line, as a cache-off read does).
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(projects.join("s.jsonl")).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(projects.join("s.jsonl"))
+            .unwrap();
         f.write_all(b"\"usage\" \"assistant\" {broken\n").unwrap();
         append_session_file(&projects, "2026-08-20T12:00:00Z", 300, 30);
         let reread = claude_entries(&ctx, since, Some(&cache));
@@ -317,8 +352,18 @@ mod tests {
 
         // The bad line is now behind the marker; good appends flow again (m2|r2 re-logged
         // with a larger total wins the keep-max dedup).
-        let rec = line("m2", "r2", "2026-08-20T13:00:00Z", "claude-sonnet-4-6", 400, 40);
-        let mut f = std::fs::OpenOptions::new().append(true).open(projects.join("s.jsonl")).unwrap();
+        let rec = line(
+            "m2",
+            "r2",
+            "2026-08-20T13:00:00Z",
+            "claude-sonnet-4-6",
+            400,
+            40,
+        );
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(projects.join("s.jsonl"))
+            .unwrap();
         f.write_all(format!("{rec}\n").as_bytes()).unwrap();
         let next = claude_entries(&ctx, since, Some(&cache));
         assert_eq!(ids(&next), vec!["m1|r1".to_string(), "m2|r2".to_string()]);
@@ -332,7 +377,14 @@ mod tests {
         session_file(&projects, "2026-08-20T10:00:00Z", 100, 10);
         assert_eq!(claude_entries(&ctx, since, Some(&cache)).len(), 1);
 
-        let rec = line("m9", "r9", "2026-08-21T09:00:00Z", "claude-sonnet-4-6", 7, 7);
+        let rec = line(
+            "m9",
+            "r9",
+            "2026-08-21T09:00:00Z",
+            "claude-sonnet-4-6",
+            7,
+            7,
+        );
         std::fs::write(projects.join("s2.jsonl"), format!("{rec}\n")).unwrap();
         let next = claude_entries(&ctx, since, Some(&cache));
         assert_eq!(next.len(), 2, "a new file must be parsed and merged");
@@ -343,7 +395,14 @@ mod tests {
     fn partial_trailing_line_is_not_lost() {
         let (ctx, projects, home, cache, since) = watermark_env();
         // Valid record without its terminating newline: a writer mid-flight.
-        let rec = line("m1", "r1", "2026-08-20T10:00:00Z", "claude-sonnet-4-6", 100, 10);
+        let rec = line(
+            "m1",
+            "r1",
+            "2026-08-20T10:00:00Z",
+            "claude-sonnet-4-6",
+            100,
+            10,
+        );
         std::fs::write(projects.join("s.jsonl"), rec).unwrap();
         let first = claude_entries(&ctx, since, Some(&cache));
         assert_eq!(first.len(), 1, "full read sees the un-terminated line");
@@ -354,8 +413,25 @@ mod tests {
 
         // Now terminated, plus a new record: both count exactly once.
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(projects.join("s.jsonl")).unwrap();
-        f.write_all(format!("\n{}\n", line("m2", "r2", "2026-08-20T11:00:00Z", "claude-sonnet-4-6", 200, 20)).as_bytes()).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(projects.join("s.jsonl"))
+            .unwrap();
+        f.write_all(
+            format!(
+                "\n{}\n",
+                line(
+                    "m2",
+                    "r2",
+                    "2026-08-20T11:00:00Z",
+                    "claude-sonnet-4-6",
+                    200,
+                    20
+                )
+            )
+            .as_bytes(),
+        )
+        .unwrap();
         let third = claude_entries(&ctx, since, Some(&cache));
         assert_eq!(ids(&third), vec!["m1|r1".to_string(), "m2|r2".to_string()]);
         std::fs::remove_dir_all(&home).ok();
@@ -368,15 +444,28 @@ mod tests {
         assert_eq!(claude_entries(&ctx, since, Some(&cache)).len(), 1);
 
         // Rewrite with the SAME size (a same-length edit is invisible to a size watermark).
-        let rec = line("m1", "r1", "2026-08-20T10:00:00Z", "claude-sonnet-4-6", 200, 10);
+        let rec = line(
+            "m1",
+            "r1",
+            "2026-08-20T10:00:00Z",
+            "claude-sonnet-4-6",
+            200,
+            10,
+        );
         std::fs::write(projects.join("s.jsonl"), format!("{rec}\n")).unwrap();
         let same = claude_entries(&ctx, since, Some(&cache));
-        assert_eq!(same[0].input, 100, "same-size rewrite stays cached within the day");
+        assert_eq!(
+            same[0].input, 100,
+            "same-size rewrite stays cached within the day"
+        );
 
         // The next local day's first pass must rebuild from source.
         cache.meta_set("full_day:claude_code", "1999-01-01");
         let fresh = claude_entries(&ctx, since, Some(&cache));
-        assert_eq!(fresh[0].input, 200, "the daily full rescan heals same-size rewrites");
+        assert_eq!(
+            fresh[0].input, 200,
+            "the daily full rescan heals same-size rewrites"
+        );
         std::fs::remove_dir_all(&home).ok();
     }
 }

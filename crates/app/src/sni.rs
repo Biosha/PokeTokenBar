@@ -324,7 +324,11 @@ impl SniMenuObject {
     ) -> zbus::fdo::Result<(u32, MenuNode)> {
         let open: MenuNode = (OPEN_ID, item_props("Open"), Vec::new());
         let quit: MenuNode = (QUIT_ID, quit_props(), Vec::new());
-        let root: MenuNode = (0, HashMap::new(), vec![Value::from(open), Value::from(quit)]);
+        let root: MenuNode = (
+            0,
+            HashMap::new(),
+            vec![Value::from(open), Value::from(quit)],
+        );
         Ok((2, root))
     }
 

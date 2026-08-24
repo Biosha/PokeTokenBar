@@ -153,6 +153,7 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Companion { json, now } => {
+            poketoken_core::pool::init_live();
             let t = tick(parse_now(&now)?)?;
             if json {
                 println!("{}", companion_json(&t));
@@ -165,6 +166,7 @@ fn main() -> anyhow::Result<()> {
             json,
             interval_secs,
         } => {
+            poketoken_core::pool::init_live();
             let interval = Duration::from_secs(interval_secs.max(1));
             eprintln!(
                 "poke-token-bar: watching every {}s (Ctrl-C to stop)",

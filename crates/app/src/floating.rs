@@ -21,12 +21,12 @@
 //! without layer-shell).
 
 use crate::app::{self, Ui};
+use gtk::prelude::*;
+use gtk4 as gtk;
+use libadwaita as adw;
 use poketoken_core::companion::CompanionState;
 use poketoken_core::config::Config;
 use poketoken_core::i18n::{compact_tokens, L};
-use gtk4 as gtk;
-use gtk::prelude::*;
-use libadwaita as adw;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -198,7 +198,7 @@ impl FloatingPet {
         if load {
             self.emoji.set_visible(true);
             self.sprite.set_visible(false);
-            app::spawn_sprite_load(name.to_string(), shiny, self.queue.clone());
+            app::spawn_sprite_load(name, shiny, self.queue.clone());
         }
     }
 }

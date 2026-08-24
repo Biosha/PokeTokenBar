@@ -15,8 +15,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use gtk4 as gtk;
 use gtk::prelude::*;
+use gtk4 as gtk;
 use libadwaita as adw;
 
 /// Dedicated id for the self-test instance: non-unique, so it never clashes with (or is
@@ -145,7 +145,9 @@ fn capture_content(root: &gtk::Box, path: &PathBuf) -> anyhow::Result<()> {
     if w <= 0 || h <= 0 {
         anyhow::bail!("content not allocated yet ({}x{})", w, h);
     }
-    let parent = root.parent().ok_or_else(|| anyhow::anyhow!("content has no parent"))?;
+    let parent = root
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("content has no parent"))?;
 
     let snap = gtk::Snapshot::new();
     parent.snapshot_child(root, &snap);

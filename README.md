@@ -29,7 +29,9 @@ A single Rust process, always in your session:
   and graduates according to exact per-rarity thresholds, with surplus carry.
   Shop (candy, mint, premium eggs), bag (passive items), natures, shiny odds,
   Pokédex. Official PokéAPI artwork (animated sprites, disk-cached, emoji
-  fallback offline). Localized UI (en / ko / ja / es).
+  fallback offline). Localized UI (en / ko / ja / es). The hatch pool is the
+  full Gen I–V evolution-line set, **resolved at runtime from PokéAPI** (see
+  below) — not compiled in.
 - **GNOME interface**:
   - tray icon (StatusNotifierItem): a Pokéball — left-click toggles the
     **floating pet** (sprite on your desktop), right-click: Open / Quit menu;
@@ -46,7 +48,7 @@ A 3-crate Rust workspace:
 
 | Crate | Role |
 |---|---|
-| `crates/core` | The portable core, **no UI at all**: providers (`src/providers/`), windows + costs, limits, companion, i18n, incremental-watermark SQLite cache, PokéAPI sprite client (`rustemon`), config and XDG paths. |
+| `crates/core` | The portable core, **no UI at all**: providers (`src/providers/`), windows + costs, limits, companion, i18n, incremental-watermark SQLite cache, PokéAPI clients (sprites via `rustemon`, **runtime pool** via `src/pokeapi.rs`), config and XDG paths. |
 | `crates/cli` | `poke-token-bar`: `snapshot` / `companion` / `watch` / `limits`, headless and testable — the core's front door. |
 | `crates/app` | `poketoken-app`: the GTK4/libadwaita window, the floating pet and the SNI tray in the **same process** (D-Bus via `zbus`, pure Rust — no libdbus, no GTK3). |
 
@@ -54,7 +56,33 @@ Threading rule: GTK4 widgets are main-thread-affine; the workers (sprites,
 limits, tray) publish results into `Arc<Mutex<_>>` queues that a main-thread
 timer drains. Usage reading is incremental (per-provider watermarks +
 `usage-cache.sqlite`): ~0.05 s in steady state instead of ~1.5 s for a full
-re-read.
+ re-read.
+
+## The Pokémon pool (runtime, no recompile)
+
+Like the original macOS app, the hatch pool is **not compiled in** — it is
+resolved at runtime from PokéAPI, so a change upstream (capture rates, names,
+a new base) reaches users without a recompile or a new release.
+
+Resolution ladder on first access (always local and instant):
+
+1. **In-memory** pool (once loaded for the process);
+2. **Disk snapshot** `~/.cache/PokeTokenBar/pool-cache.json` — a stale
+   snapshot is used too (the macOS app serves its expired disk index the same
+   way);
+3. **Bundled fallback** — a generated Gen I–V snapshot
+   (`crates/core/src/pool_gen.rs`) that keeps the app fully functional offline.
+
+`pool::init_live()` (called at app/CLI start) spawns a background refresh:
+when the disk snapshot is older than the **30-day TTL** it re-fetches the base
+index (one GraphQL query), the 649 species rows, and every base's evolution
+chain (8-way, chain URLs pinned to `https://pokeapi.co`), persists the new
+snapshot, and hot-swaps it in. A partially-failed fetch degrades per-species
+onto the bundled data; a full offline launch simply stays on the fallback.
+
+- Disable the live refresh entirely with `PTB_POOL_OFFLINE=1`.
+- `scripts/gen_pool.py` regenerates the bundled fallback only (it no longer
+  defines the pool).
 
 ## Build
 
@@ -107,6 +135,9 @@ without recompiling; `PTB_ICON_URL` overrides the downloaded icon.
 - Companion state: `~/.local/share/PokeTokenBar/` — override with `PTB_STATE_DIR`.
 - Usage cache: `~/.cache/PokeTokenBar/usage-cache.sqlite` — `PTB_USAGE_CACHE=off`
   forces full re-reads (byte-identical parity, covered by a test).
+- Pokémon pool snapshot: `~/.cache/PokeTokenBar/pool-cache.json` (30-day TTL,
+  refreshed in the background) — `PTB_POOL_OFFLINE=1` disables the live refresh
+  and serves the bundled fallback.
 - Provider search root: `POKE_TOKEN_BAR_HOME` (defaults to `$HOME`).
 
 ## License

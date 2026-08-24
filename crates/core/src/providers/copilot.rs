@@ -64,8 +64,7 @@ fn copilot_entries(
         let db_path = db.clone();
         let parse = move |row: &Row<'_>| {
             let id = sqld::col_i64(row, 0);
-            let created =
-                sqld::col_text(row, 6).ok_or_else(|| anyhow::anyhow!("no created_at"))?;
+            let created = sqld::col_text(row, 6).ok_or_else(|| anyhow::anyhow!("no created_at"))?;
             let date = copilot_date(&created).ok_or_else(|| anyhow::anyhow!("bad date"))?;
             let cache_read = sqld::col_i64(row, 4);
             let cache_write = sqld::col_i64(row, 5);

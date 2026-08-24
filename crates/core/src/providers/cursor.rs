@@ -19,7 +19,8 @@ const TABLE: &str = "cursorDiskKV";
 /// lowercase `bubbleid:*` row never matches. The table has no time column, so the date floor is
 /// applied per-row on the parsed bubble.
 const SQL: &str = "SELECT key, value FROM cursorDiskKV WHERE key GLOB 'bubbleId:*'";
-const SQL_INC: &str = "SELECT key, value FROM cursorDiskKV WHERE key GLOB 'bubbleId:*' AND rowid > ?";
+const SQL_INC: &str =
+    "SELECT key, value FROM cursorDiskKV WHERE key GLOB 'bubbleId:*' AND rowid > ?";
 
 impl UsageProvider for CursorProvider {
     fn id(&self) -> &'static str {
@@ -507,8 +508,14 @@ mod tests {
         let next = cursor_entries(&ctx, floor(), Some(&cache));
         let plain = cursor_entries(&ctx, floor(), None);
         assert_eq!(next.len(), 2);
-        assert!(next.iter().any(|e| e.input == 40), "the edited bubble must be re-read");
-        assert_eq!(next, plain, "re-read after in-place edits must equal a full read");
+        assert!(
+            next.iter().any(|e| e.input == 40),
+            "the edited bubble must be re-read"
+        );
+        assert_eq!(
+            next, plain,
+            "re-read after in-place edits must equal a full read"
+        );
         std::fs::remove_dir_all(&dir).ok();
     }
 

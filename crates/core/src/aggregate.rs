@@ -47,7 +47,7 @@ pub fn period(entries: &[Entry], period_key: &str, from_day: &str, to_day: &str)
 pub fn active_block(entries: &[Entry], now: DateTime<Utc>) -> Option<BlockUsage> {
     let window_start = now - block_window();
     let mut recent: Vec<&Entry> = entries.iter().filter(|e| e.date >= window_start).collect();
-    recent.sort_by(|a, b| a.date.cmp(&b.date));
+    recent.sort_by_key(|a| a.date);
     let first = *recent.first()?;
     let mut b = Bucket::default();
     for e in &recent {

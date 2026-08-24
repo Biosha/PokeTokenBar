@@ -118,7 +118,10 @@ mod tests {
         let mut seen = std::collections::HashSet::new();
         for n in Nature::ALL {
             assert!(seen.insert(n));
-            assert_eq!(Nature::from_index(Nature::ALL.iter().position(|m| *m == n).unwrap() as u64), n);
+            assert_eq!(
+                Nature::from_index(Nature::ALL.iter().position(|m| *m == n).unwrap() as u64),
+                n
+            );
         }
     }
 

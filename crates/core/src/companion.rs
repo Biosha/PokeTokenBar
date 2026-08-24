@@ -1,6 +1,7 @@
 //! Pokémon companion core — full Phase 1b port of the macOS app's companion scope:
 //! - the complete Gen I–V evolution-line pool with official capture-rate weights
-//!   ([`crate::pool`], embedded snapshot of what `PokeAPIClient` fetched at runtime);
+//!   ([`crate::pool`], resolved at runtime from PokéAPI as in the macOS app's
+//!   `PokeAPIClient` — 30-day disk cache, bundled offline fallback);
 //! - the egg → hatch → evolve → graduate loop with the exact [`PokemonBalance`] thresholds
 //!   (egg hatch 5M, per-rarity graduation totals, per-form phase costs that sum to the total);
 //! - shiny (1/64, 1/48 with the Shiny Charm) and 25-nature rolls at hatch, Ditto disguise
@@ -14,7 +15,7 @@
 //! lineKey, formIndex, phaseProgress, graduated, dex, seed, lastDay, dayApplied) load via
 //! serde defaults + [`CompanionState::migrate`]. New fields are appended, never renamed.
 
-use crate::i18n::{L, Language};
+use crate::i18n::{Language, L};
 use crate::nature::Nature;
 use crate::pool::{self, Roll};
 use serde::{Deserialize, Serialize};
@@ -174,8 +175,7 @@ impl FreshEgg {
     pub const PRICE: i64 = 1_000_000_000;
     /// Tiers sold: no guarantee → uncommon+ → rare+. No legendary-only egg (the guarantee
     /// cannot be expressed via capture rate, and the top tier is not a fixed product).
-    pub const SHOP_TIERS: [Option<Rarity>; 3] =
-        [None, Some(Rarity::Uncommon), Some(Rarity::Rare)];
+    pub const SHOP_TIERS: [Option<Rarity>; 3] = [None, Some(Rarity::Uncommon), Some(Rarity::Rare)];
 
     /// Tiered price = base × (graduationTotal(tier) / graduationTotal(common)), reusing the
     /// graduation table: 1B / 2.5B / 4B (1 : 2.5 : 4).
@@ -381,7 +381,7 @@ impl Default for DexEntry {
 pub enum CompanionEvent {
     Hatched {
         /// Base slug (stable id for the line).
-        slug: &'static str,
+        slug: String,
         /// English species name (display localizes via i18n/pool).
         species: String,
         is_shiny: bool,
@@ -450,7 +450,6 @@ pub struct CompanionState {
     pub day_applied: i64,
 
     // ---- Phase 1b additions (all defaulted; absent from legacy files) ----
-
     /// Lifetime tokens used (wallet source; growth meter, never rewound by purchases).
     pub used_since_install: i64,
     /// Lifetime tokens spent in the shop (currency = usedSinceInstall − spentTokens).
@@ -556,19 +555,19 @@ impl CompanionState {
     }
 
     /// Current species name in the state's language (the egg placeholder when hatching).
-    pub fn species(&self) -> &str {
+    pub fn species(&self) -> String {
         if self.is_egg() {
-            return "Egg";
+            return "Egg".to_string();
         }
         let Some(s) = pool::species_by_id(self.current_id()) else {
-            return "??";
+            return "??".to_string();
         };
         let lang = Language::from_code(&self.language).unwrap_or(Language::En);
         let name = match lang {
             Language::Ko => s.ko,
             Language::Ja => s.ja,
             Language::Es => s.es,
-            Language::En => s.en,
+            Language::En => s.en.clone(),
         };
         if name.is_empty() {
             s.en
@@ -578,11 +577,13 @@ impl CompanionState {
     }
 
     /// English name — sprite lookups must use this (the PokéAPI slug is English-only).
-    pub fn species_en(&self) -> &str {
+    pub fn species_en(&self) -> String {
         if self.is_egg() {
-            return "Egg";
+            return "Egg".to_string();
         }
-        pool::species_by_id(self.current_id()).map(|s| s.en).unwrap_or("??")
+        pool::species_by_id(self.current_id())
+            .map(|s| s.en)
+            .unwrap_or_else(|| "??".to_string())
     }
 
     pub fn total_forms(&self) -> i64 {
@@ -699,7 +700,7 @@ impl CompanionState {
             }
             let cur = self.current_id();
             if pool::children_of(cur).is_empty() || self.form_index >= k - 1 {
-                let species = self.species_en().to_string();
+                let species = self.species_en();
                 self.graduate();
                 events.push(CompanionEvent::Graduated { species });
                 break;
@@ -731,7 +732,9 @@ impl CompanionState {
         let carry = (self.phase_progress - first_thr).max(0);
         let disguise_en = pool::en_name(disguise);
         let ditto = PokemonOdds::DITTO_SPECIES_ID;
-        self.line_key = pool::species_by_id(ditto).map(|s| s.slug.to_string()).unwrap_or_default();
+        self.line_key = pool::species_by_id(ditto)
+            .map(|s| s.slug.to_string())
+            .unwrap_or_default();
         self.path = vec![ditto];
         self.planned_path = vec![ditto];
         self.form_index = 0;
@@ -739,7 +742,9 @@ impl CompanionState {
         self.graduated = false;
         self.ditto_revealed = true;
         // ditto_disguise keeps the original species id (display "you thought it was …").
-        CompanionEvent::DittoRevealed { disguise: disguise_en }
+        CompanionEvent::DittoRevealed {
+            disguise: disguise_en,
+        }
     }
 
     /// Graduate (port of `graduate`): record the permanent dex entry + collected final.
@@ -812,7 +817,7 @@ impl CompanionState {
         self.ditto_disguise = ditto;
         self.ditto_revealed = false;
         self.egg_tier = None; // the guarantee is consumed by this hatch
-        if !self.dex.iter().any(|s| s == line.slug) {
+        if !self.dex.iter().any(|s| s == &line.slug) {
             self.dex.push(line.slug.to_string());
         }
         Some(CompanionEvent::Hatched {
@@ -940,7 +945,10 @@ impl CompanionState {
         if !self.can_use_rare_candy() {
             return CandyUseResult::Unavailable;
         }
-        self.inventory.insert(ItemKind::RareCandy.raw().to_string(), self.item_count(ItemKind::RareCandy) - 1);
+        self.inventory.insert(
+            ItemKind::RareCandy.raw().to_string(),
+            self.item_count(ItemKind::RareCandy) - 1,
+        );
         let before_stage = self.form_index;
         self.phase_progress = self.phase_progress.saturating_add(RareCandy::XP);
         let _ = self.apply_growth();
@@ -964,21 +972,31 @@ impl CompanionState {
             return None;
         }
         let current = self.nature;
-        let candidates: Vec<Nature> =
-            Nature::ALL.iter().copied().filter(|n| Some(*n) != current).collect();
+        let candidates: Vec<Nature> = Nature::ALL
+            .iter()
+            .copied()
+            .filter(|n| Some(*n) != current)
+            .collect();
         let new = {
             let mut roll = SeedRoll(&mut self.seed);
             candidates[(roll.next() % candidates.len() as u64) as usize]
         };
         self.nature = Some(new);
-        self.inventory.insert(ItemKind::Mint.raw().to_string(), self.item_count(ItemKind::Mint) - 1);
+        self.inventory.insert(
+            ItemKind::Mint.raw().to_string(),
+            self.item_count(ItemKind::Mint) - 1,
+        );
         Some(new)
     }
 
     /// Grant candies from limit windows (port of `grantCandies`): first run only seeds
     /// already-100% windows (no retroactive grant); afterwards the edge-triggered decision
     /// applies and re-arms (100% → below) must persist.
-    pub fn grant_candies(&mut self, windows: &[CandyWindow], limits_ready: bool) -> Vec<CandyGrant> {
+    pub fn grant_candies(
+        &mut self,
+        windows: &[CandyWindow],
+        limits_ready: bool,
+    ) -> Vec<CandyGrant> {
         if !limits_ready {
             return Vec::new();
         }
@@ -1070,14 +1088,21 @@ impl CompanionState {
             // Legacy: no stored plan — re-plan from the realized node (Swift: realized +
             // suffix, which is exactly this for an empty plan).
             let mut roll = SeedRoll(&mut self.seed);
-            let suffix =
-                pool::make_evolution_plan(*realized.last().unwrap_or(&base), &self.collected_finals, &mut roll);
-            planned = realized.iter().chain(suffix.iter().skip(1)).copied().collect();
+            let suffix = pool::make_evolution_plan(
+                *realized.last().unwrap_or(&base),
+                &self.collected_finals,
+                &mut roll,
+            );
+            planned = realized
+                .iter()
+                .chain(suffix.iter().skip(1))
+                .copied()
+                .collect();
         }
 
         self.path = realized;
         self.planned_path = planned;
-        let last = (self.path.len() - 1).max(0) as i64;
+        let last = (self.path.len() - 1) as i64;
         self.form_index = (self.form_index.clamp(0, 12)).min(last);
 
         // Legacy dex (hatched slugs) → permanent entries for lines other than the current one
@@ -1327,7 +1352,8 @@ mod tests {
         let guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("ptb-companion-test-{}-{}", std::process::id(), n));
+        let dir =
+            std::env::temp_dir().join(format!("ptb-companion-test-{}-{}", std::process::id(), n));
         std::fs::create_dir_all(&dir).unwrap();
         std::env::set_var("PTB_STATE_DIR", &dir);
         Isolated(dir, guard)
@@ -1503,7 +1529,11 @@ mod tests {
         assert_eq!(s.path, vec![133, 135]);
         assert_eq!(s.form_index, 1);
         assert_eq!(s.species(), "Jolteon");
-        assert!(s.planned_path.starts_with(&[133, 135]), "{:?}", s.planned_path);
+        assert!(
+            s.planned_path.starts_with(&[133, 135]),
+            "{:?}",
+            s.planned_path
+        );
         // Legacy dex: the other hatched line becomes a permanent entry.
         assert_eq!(s.dex_entries.len(), 1);
         assert_eq!(s.dex_entries[0].base_id, 1);
@@ -1536,8 +1566,14 @@ mod tests {
 
     #[test]
     fn hatch_sequence_is_deterministic_per_seed() {
-        let mut a = CompanionState { seed: 0xCAFE, ..Default::default() };
-        let mut b = CompanionState { seed: 0xCAFE, ..Default::default() };
+        let mut a = CompanionState {
+            seed: 0xCAFE,
+            ..Default::default()
+        };
+        let mut b = CompanionState {
+            seed: 0xCAFE,
+            ..Default::default()
+        };
         let events_a: Vec<String> = (0..5)
             .map(|_| {
                 let ev = a.add_tokens(EGG_HATCH_THRESHOLD + graduation_total(Rarity::Legendary));
@@ -1607,7 +1643,10 @@ mod tests {
     fn ditto_disguise_gates() {
         assert!(ditto_disguise_hit(Rarity::Common, 2, 0));
         assert!(ditto_disguise_hit(Rarity::Common, 3, 128));
-        assert!(!ditto_disguise_hit(Rarity::Common, 1, 0), "single-form excluded");
+        assert!(
+            !ditto_disguise_hit(Rarity::Common, 1, 0),
+            "single-form excluded"
+        );
         assert!(!ditto_disguise_hit(Rarity::Rare, 3, 0), "rare excluded");
         assert!(!ditto_disguise_hit(Rarity::Legendary, 2, 0));
         assert!(!ditto_disguise_hit(Rarity::Common, 2, 127));
@@ -1655,7 +1694,10 @@ mod tests {
         assert_eq!(s.spent_tokens, FreshEgg::price(Some(Rarity::Rare)));
         assert_eq!(s.available_tokens(), 1_000_000_000);
         assert_eq!(s.dex_entries, dex_before, "permanent dex untouched");
-        assert_eq!(s.collected_finals, finals_before, "probability weights untouched");
+        assert_eq!(
+            s.collected_finals, finals_before,
+            "probability weights untouched"
+        );
         assert_eq!(s.line_key, "");
     }
 
@@ -1713,7 +1755,10 @@ mod tests {
             ..Default::default()
         };
         s.migrate();
-        assert_eq!(s.egg_tier, None, "unsatisfiable guarantee would never hatch");
+        assert_eq!(
+            s.egg_tier, None,
+            "unsatisfiable guarantee would never hatch"
+        );
         // And an egg tier never coexists with an active companion.
         let mut s = CompanionState {
             line_key: "mew".into(),
@@ -1807,7 +1852,9 @@ mod tests {
             used_since_install: 0,
             ..Default::default()
         };
-        egg_state.inventory.insert(ItemKind::RareCandy.raw().to_string(), 1);
+        egg_state
+            .inventory
+            .insert(ItemKind::RareCandy.raw().to_string(), 1);
         assert_eq!(egg_state.use_rare_candy(), CandyUseResult::Unavailable);
     }
 
@@ -1823,7 +1870,10 @@ mod tests {
         let mut prev = s.nature.unwrap();
         for _ in 0..25 {
             let new = s.use_mint().unwrap();
-            assert_ne!(new, prev, "must pick a nature different from the current one");
+            assert_ne!(
+                new, prev,
+                "must pick a nature different from the current one"
+            );
             assert_eq!(s.nature, Some(new));
             prev = new;
         }
@@ -1847,39 +1897,24 @@ mod tests {
         // First run seeds (no grant).
         let mut s = CompanionState::default();
         assert!(s
-            .grant_candies(
-                &[window("claude.5h", WindowClass::Session, 100.0)],
-                true
-            )
+            .grant_candies(&[window("claude.5h", WindowClass::Session, 100.0)], true)
             .is_empty());
         assert!(s.candy_feature_seeded);
         assert_eq!(s.item_count(ItemKind::RareCandy), 0, "no retroactive grant");
         // A new crossing grants (session = 1).
-        let grants = s.grant_candies(
-            &[window("codex.weekly", WindowClass::Weekly, 102.0)],
-            true,
-        );
+        let grants = s.grant_candies(&[window("codex.weekly", WindowClass::Weekly, 102.0)], true);
         assert_eq!(grants.len(), 1);
         assert_eq!(grants[0].count, RareCandy::WEEKLY_GRANT);
         assert_eq!(s.item_count(ItemKind::RareCandy), RareCandy::WEEKLY_GRANT);
         // Same window again: no re-grant.
         assert!(s
-            .grant_candies(
-                &[window("codex.weekly", WindowClass::Weekly, 102.0)],
-                true
-            )
+            .grant_candies(&[window("codex.weekly", WindowClass::Weekly, 102.0)], true)
             .is_empty());
         // Drop below 100 → re-arm; cross again → grant again.
         assert!(s
-            .grant_candies(
-                &[window("codex.weekly", WindowClass::Weekly, 99.0)],
-                true
-            )
+            .grant_candies(&[window("codex.weekly", WindowClass::Weekly, 99.0)], true)
             .is_empty());
-        let grants = s.grant_candies(
-            &[window("codex.weekly", WindowClass::Weekly, 100.0)],
-            true,
-        );
+        let grants = s.grant_candies(&[window("codex.weekly", WindowClass::Weekly, 100.0)], true);
         assert_eq!(grants.len(), 1);
         // limits not ready → nothing.
         assert!(s

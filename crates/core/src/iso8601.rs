@@ -24,7 +24,7 @@ pub fn parse(s: &str) -> Option<DateTime<Utc>> {
             let tz_pos = dot + tz_off;
             let frac = &s[dot + 1..tz_pos];
             let frac3 = format!("{:0<3}", frac.chars().take(3).collect::<String>());
-            let rebuilt = format!("{}.{}{}", &s[..dot], &frac3, &s[tz_pos..]);
+            let rebuilt = format!("{}.{}{}", &s[..dot], frac3, &s[tz_pos..]);
             if let Ok(dt) = DateTime::parse_from_rfc3339(&rebuilt) {
                 return Some(dt.with_timezone(&Utc));
             }

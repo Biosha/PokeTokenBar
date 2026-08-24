@@ -4,3 +4,4 @@
 .DS_Store
 # Local state when testing the app (keep out of VCS)
 .state/
+__pycache__/

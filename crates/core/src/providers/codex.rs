@@ -1105,9 +1105,7 @@ fn load_rollout(
     let rollout = parse_codex_rollout(&f.path, tz);
     if let Some(cache) = cache {
         let key = usage_cache::source_key(&f.path);
-        let marker = std::fs::metadata(&f.path)
-            .map(|m| m.len())
-            .unwrap_or(0) as i64;
+        let marker = std::fs::metadata(&f.path).map(|m| m.len()).unwrap_or(0) as i64;
         cache.upsert_source("codex", &key, marker, Some(encode_rollout(&rollout)));
     }
     rollout
@@ -2087,14 +2085,21 @@ mod tests {
         assert!(!first.is_empty());
 
         let state = cache
-            .source("codex", &crate::usage_cache::source_key(&dir.join("child.jsonl")))
+            .source(
+                "codex",
+                &crate::usage_cache::source_key(&dir.join("child.jsonl")),
+            )
             .unwrap()
             .expect("the child rollout must be cached");
         assert!(state.payload.is_some(), "parse state must be persisted");
 
         let second =
             codex_entries_with_cache(std::slice::from_ref(&dir), since, tz(), Some(&cache), false);
-        assert_eq!(totals(&second), totals(&first), "cached pass must equal the full pass");
+        assert_eq!(
+            totals(&second),
+            totals(&first),
+            "cached pass must equal the full pass"
+        );
         // And equal to the no-cache baseline.
         let plain = codex_entries(std::slice::from_ref(&dir), since, tz());
         assert_eq!(totals(&second), totals(&plain));
@@ -2109,17 +2114,26 @@ mod tests {
             codex_entries_with_cache(std::slice::from_ref(&dir), since, tz(), Some(&cache), true);
 
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(&child).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&child)
+            .unwrap();
         // The fixture file has no trailing newline, so the append must start with one.
         f.write_all(
-            format!("\n{}\n", state("2026-08-20T02:00:04.000Z", 2_000, 120, 700, 20))
-                .as_bytes(),
+            format!(
+                "\n{}\n",
+                state("2026-08-20T02:00:04.000Z", 2_000, 120, 700, 20)
+            )
+            .as_bytes(),
         )
         .unwrap();
         let second =
             codex_entries_with_cache(std::slice::from_ref(&dir), since, tz(), Some(&cache), false);
         let plain = codex_entries(std::slice::from_ref(&dir), since, tz());
-        assert!(totals(&second).len() > totals(&first).len(), "the new turn must be picked up");
+        assert!(
+            totals(&second).len() > totals(&first).len(),
+            "the new turn must be picked up"
+        );
         assert_eq!(
             totals(&second),
             totals(&plain),

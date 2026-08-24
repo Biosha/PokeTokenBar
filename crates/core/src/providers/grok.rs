@@ -32,7 +32,11 @@ impl UsageProvider for GrokProvider {
 
 /// The read path, with the cache injected so tests can pin it to a temp file. Files are
 /// byte-offset-marked sources; only the appended complete lines of a grown file are parsed.
-fn grok_entries(ctx: &ProviderCtx, since: DateTime<Utc>, cache: Option<&usage_cache::UsageCache>) -> Vec<Entry> {
+fn grok_entries(
+    ctx: &ProviderCtx,
+    since: DateTime<Utc>,
+    cache: Option<&usage_cache::UsageCache>,
+) -> Vec<Entry> {
     let full = cache
         .map(|c| c.full_rescan_due("grok_cli", &ctx.tz))
         .unwrap_or(true);
@@ -315,8 +319,12 @@ mod tests {
         assert_eq!(grok_entries(&ctx, since, Some(&cache)).len(), 1);
 
         use std::io::Write as _;
-        let mut f = std::fs::OpenOptions::new().append(true).open(&file).unwrap();
-        f.write_all(format!("{}\n", turn("p2", 20)).as_bytes()).unwrap();
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&file)
+            .unwrap();
+        f.write_all(format!("{}\n", turn("p2", 20)).as_bytes())
+            .unwrap();
         let next = grok_entries(&ctx, since, Some(&cache));
         let full = dedup_keep_max(parse_grok_file(&file, ctx.tz));
         assert_eq!(next.len(), 2);

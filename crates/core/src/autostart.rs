@@ -99,7 +99,9 @@ mod tests {
 
     #[test]
     fn marker_detection_is_line_anchored() {
-        assert!(is_our_entry("junk\n# PokeTokenBar autostart entry\n[Desktop Entry]"));
+        assert!(is_our_entry(
+            "junk\n# PokeTokenBar autostart entry\n[Desktop Entry]"
+        ));
         assert!(!is_our_entry("# PokeTokenBar autostart entry: do not edit"));
         assert!(!is_our_entry("[Desktop Entry]"));
     }
